@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "896762019147",
+    "project_id": "smart-restaurant-69364",
+    "storage_bucket": "smart-restaurant-69364.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:896762019147:android:87857746549181933a7cce",
+        "android_client_info": {
+          "package_name": "com.example.smart_restaurant"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7TExdChbkd-u1-Ft8pZ_FZV2_5PBbDw0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
