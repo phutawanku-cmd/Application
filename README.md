@@ -1,4 +1,4 @@
-# Application# 🍽️ Smart Restaurant (Flutter + Firebase)
+# 🍽️ Smart Restaurant (Flutter + Firebase)
 
 แอปแสดงรายการร้านอาหารโดยใช้ Flutter + Firebase Firestore (Realtime)
 

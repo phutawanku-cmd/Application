@@ -8,8 +8,14 @@ plugins {
 
 android {
     namespace = "com.example.smart_restaurant"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    
+    // 🚩 แก้จุดที่ 1: ใส่เลข 34 ลงไปตรงๆ แทน flutter.compileSdkVersion
+    compileSdk = 34 
+
+    // 🚩 แก้จุดที่ 2: ลบบรรทัด ndkVersion ออก หรือคอมเมนต์ไว้ (เพื่อเลิกใช้ NDK ที่พัง)
+    // ndkVersion = flutter.ndkVersion 
+
+  
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -21,12 +27,14 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.smart_restaurant"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        
+        // 🚩 แก้จุดที่ 3: ใส่เลข 21 (Min SDK ที่ Firebase รองรับ)
+        minSdk = flutter.minSdkVersion 
+        
+        // 🚩 แก้จุดที่ 4: ใส่เลข 34 (Target SDK ที่เสถียรที่สุดตอนนี้)
+        targetSdk = 34 
+
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
