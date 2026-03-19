@@ -10,13 +10,12 @@ class DatabaseService {
         .toList());
   }
 
-  // 🚩 เพิ่มรับค่า lat, lng
   Future<void> addRestaurant(String name, String category, double lat, double lng, List<Map<String, dynamic>> menus) {
     return _db.add({
       'name': name,
       'category': category,
       'lat': lat, // 🚩 บันทึกพิกัด
-      'lng': lng, // 🚩 บันทึกพิกัด
+      'lng': lng, 
       'menus': menus,
       'searchKeywords': [name, category, ...menus.map((m) => m['name'] as String)],
     });
@@ -39,5 +38,33 @@ class DatabaseService {
         .map((snapshot) => snapshot.docs
             .map((doc) => Restaurant.fromFirestore(doc.id, doc.data() as Map<String, dynamic>))
             .toList());
+  }
+  
+  // ส่วนจัดการระบบรีวิว (Review & Rating)
+  
+
+  // 1. [WRITE] ฟังก์ชันเพิ่มรีวิวลงใน Sub-collection 'reviews' ของร้านอาหาร
+  Future<void> addReview(String restaurantId, String userId, String userEmail, double rating, String comment) {
+    // วิ่งเข้าไปที่ร้านอาหาร (doc) -> เปิดสมุดเยี่ยมชม (collection) -> เขียนข้อความ (add)
+    return _db.doc(restaurantId).collection('reviews').add({
+      'userId': userId,             
+      'userEmail': userEmail,       
+      'rating': rating,           
+      'comment': comment,         
+      'timestamp': FieldValue.serverTimestamp(), // 🚩 ประทับตราเวลาของเซิร์ฟเวอร์
+    });
+  }
+
+  // 2. [READ] ฟังก์ชันดึงข้อมูลรีวิวทั้งหมดของร้านนั้นๆ ออกมาแสดงแบบ Real-time
+  Stream<QuerySnapshot> getReviews(String restaurantId, {int? limit}) {
+    var query = _db.doc(restaurantId)
+        .collection('reviews')
+        .orderBy('timestamp', descending: true);
+        
+    if (limit != null) {
+      query = query.limit(limit);
+    }
+    
+    return query.snapshots();
   }
 }
