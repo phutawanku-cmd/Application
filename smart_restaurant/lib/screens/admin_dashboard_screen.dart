@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'add_restaurant_screen.dart';
-import 'update_and_delete_screen.dart'; // 👈 เพิ่มบรรทัดนี้เพื่อให้รู้จักไฟล์ใหม่
+
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
@@ -89,8 +89,10 @@ class AdminDashboardScreen extends StatelessWidget {
                 subtitle: const Text('ตรวจสอบและลบรีวิวที่ไม่เหมาะสม'),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('ระบบจัดการรีวิวจะใช้งานได้เร็วๆ นี้ 🚧')),
+                  // 🚀 เด้งไปหน้าจัดการรีวิวฉบับแอดมิน!
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AdminReviewModerationScreen()),
                   );
                 },
               ),

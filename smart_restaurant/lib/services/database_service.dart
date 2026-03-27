@@ -29,7 +29,6 @@ class DatabaseService {
     return _db.doc(id).delete();
   }
 
-
   // [SEARCH] ค้นหาร้านอาหารตาม Keyword
   Stream<List<Restaurant>> searchRestaurants(String query) {
     return _db
@@ -40,8 +39,9 @@ class DatabaseService {
             .toList());
   }
   
+  // ==========================================
   // ส่วนจัดการระบบรีวิว (Review & Rating)
-  
+  // ==========================================
 
   // 1. [WRITE] ฟังก์ชันเพิ่มรีวิวลงใน Sub-collection 'reviews' ของร้านอาหาร
   Future<void> addReview(String restaurantId, String userId, String userEmail, double rating, String comment) {
@@ -68,4 +68,3 @@ class DatabaseService {
     return query.snapshots();
   }
 }
-
