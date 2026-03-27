@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'add_restaurant_screen.dart';
-
+import 'update_and_delete_screen.dart'; // 👈 เพิ่มบรรทัดนี้เพื่อให้รู้จักไฟล์ใหม่
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
@@ -34,9 +34,9 @@ class AdminDashboardScreen extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const AddRestaurantScreen()),
+                    MaterialPageRoute(builder: (context) => const UpdateAndDeleteScreen()), // 👈 เปลี่ยนตรงนี้
                   );
-                },
+            },
               ),
             ),
             const SizedBox(height: 12),
@@ -45,13 +45,18 @@ class AdminDashboardScreen extends StatelessWidget {
             Card(
               elevation: 4,
               child: ListTile(
-                leading: const CircleAvatar(backgroundColor: Colors.orange, child: Icon(Icons.edit_document, color: Colors.white)),
+                leading: const CircleAvatar(
+                    backgroundColor: Colors.orange, 
+                    child: Icon(Icons.edit_document, color: Colors.white)
+                ),
                 title: const Text('จัดการข้อมูลร้านอาหาร', style: TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: const Text('แก้ไขรายละเอียด หรือลบร้านออกจากระบบ'),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('กำลังพัฒนาระบบแก้ไข/ลบข้อมูล 🚧')),
+                  // 🚀 ยิงไปหน้าจัดการข้อมูลได้เลย!
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const UpdateAndDeleteScreen()), 
                   );
                 },
               ),
