@@ -29,7 +29,6 @@ class DatabaseService {
     return _db.doc(id).delete();
   }
 
-
   // [SEARCH] ค้นหาร้านอาหารตาม Keyword
   Stream<List<Restaurant>> searchRestaurants(String query) {
     return _db
@@ -40,8 +39,9 @@ class DatabaseService {
             .toList());
   }
   
+  // ==========================================
   // ส่วนจัดการระบบรีวิว (Review & Rating)
-  
+  // ==========================================
 
   // 1. [WRITE] ฟังก์ชันเพิ่มรีวิวลงใน Sub-collection 'reviews' ของร้านอาหาร
   Future<void> addReview(String restaurantId, String userId, String userEmail, double rating, String comment) {
@@ -67,4 +67,40 @@ class DatabaseService {
     
     return query.snapshots();
   }
-}
+
+  // ==========================================
+  // ส่วนจัดการของแอดมิน (Admin Features)
+  // ==========================================
+
+  // 🛡️ [ADMIN] 1. ดึงรีวิวทั้งหมดจากทุกร้านอาหารด้วย Collection Group
+  Stream<QuerySnapshot> getAllReviewsForAdmin() {
+    // collectionGroup จะไปกวาดหา Sub-collection ที่ชื่อ 'reviews' จากทุกๆ ร้านมารวมกัน
+    return FirebaseFirestore.instance.collectionGroup('reviews').snapshots();
+  }
+
+  // 🛡️ [ADMIN] 2. ลบรีวิวโดยใช้ DocumentReference
+  Future<void> deleteReview(DocumentReference reviewRef) async {
+    // สั่งลบเอกสารเป้าหมายทิ้งทันที
+    await reviewRef.delete();
+  }
+
+  // 🔐 [SECURITY] 3. ฟังก์ชันตรวจสอบรหัสผ่าน Admin จาก Database
+  Future<bool> verifyAdminPassword(String inputPassword) async {
+    try {
+      // 1. วิ่งไปอ่านเอกสาร 'admin' ในแฟ้ม 'settings'
+      DocumentSnapshot doc = await FirebaseFirestore.instance.collection('settings').doc('admin').get();
+      
+      // 2. เช็คว่ามีเอกสารนี้อยู่จริงไหม
+      if (doc.exists) {
+        // 3. ดึงรหัสผ่านที่เก็บไว้มาเทียบกับที่ผู้ใช้พิมพ์
+        String actualPassword = doc.get('password');
+        return inputPassword == actualPassword;
+      }
+      return false; // ถ้าหาไฟล์ไม่เจอ ให้ถือว่ารหัสผิดไปเลย
+    } catch (e) {
+      print("❌ Error verifying admin password: $e");
+      return false;
+    }
+  }
+
+} // 🛑 ปีกกาปิดของ class DatabaseService ต้องอยู่บรรทัดล่างสุดตรงนี้เท่านั้นครับ!
