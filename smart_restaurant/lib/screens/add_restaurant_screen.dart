@@ -12,11 +12,7 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _categoryController = TextEditingController();
-  
-  // 🔗 เพิ่มกล่องรับลิงก์รูปภาพ (Image URL)
   final _imageUrlController = TextEditingController(); 
-
-  // 📍 กล่องควบคุมพิกัด
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
 
@@ -24,6 +20,17 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
   bool _isLoading = false; 
 
   final List<Map<String, TextEditingController>> _menuControllers = [];
+
+  // 🚩 1. ฟังก์ชันเช็คว่าลิงก์รูปภาพน่าจะใช้ได้หรือไม่
+  bool _isValidImageUrl(String url) {
+    if (url.isEmpty) return false;
+    return url.startsWith('http') && 
+           (url.toLowerCase().contains('.jpg') || 
+            url.toLowerCase().contains('.jpeg') || 
+            url.toLowerCase().contains('.png') || 
+            url.toLowerCase().contains('.webp') ||
+            url.contains('firebasestorage'));
+  }
 
   void _addMenuField() {
     setState(() {
@@ -44,6 +51,17 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
 
   Future<void> _saveRestaurant() async {
     if (_formKey.currentState!.validate()) {
+      
+      // 🚩 2. แจ้งเตือนถ้าลิงก์รูปภาพดูไม่ถูกต้องก่อนบันทึก
+      if (!_isValidImageUrl(_imageUrlController.text)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ ลิงก์รูปภาพอาจไม่ถูกต้อง รูปอาจไม่แสดงผลในหน้าแรก'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+
       setState(() => _isLoading = true);
 
       try {
@@ -57,18 +75,17 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
           };
         }).toList();
 
-        // 🚀 สั่งบันทึกลงฐานข้อมูล โดยโยนลิงก์รูปภาพเข้าไปตรงๆ เลย!
         await _dbService.addRestaurant(
           _nameController.text,
           _categoryController.text,
           lat,
           lng,
           menuData, 
-          _imageUrlController.text, // 🚩 ดึงข้อความจากช่องกรอกลิงก์ส่งไปเลย
+          _imageUrlController.text,
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ เพิ่มร้านอาหารพร้อมเมนูเรียบร้อย!')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ เพิ่มร้านอาหารเรียบร้อย!')));
           Navigator.pop(context);
         }
       } catch (e) {
@@ -85,7 +102,7 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
   void dispose() {
     _nameController.dispose();
     _categoryController.dispose();
-    _imageUrlController.dispose(); // กวาดขยะตัวนี้ด้วย
+    _imageUrlController.dispose();
     _latController.dispose();
     _lngController.dispose();
     for (var m in _menuControllers) {
@@ -106,16 +123,43 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              
-              // 🔗 ช่องกรอกลิงก์รูปภาพ (ง่ายและชัวร์สุด!)
+              // 🖼️ 3. ส่วนแสดงรูปตัวอย่าง (Image Preview)
+              if (_imageUrlController.text.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      _imageUrlController.text,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      // ถ้าลิงก์เสีย จะแสดงไอคอนแจ้งเตือน
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 200,
+                        color: Colors.grey[200],
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.broken_image, size: 50, color: Colors.red),
+                            Text('ลิงก์รูปภาพใช้งานไม่ได้', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
               TextFormField(
                 controller: _imageUrlController,
                 decoration: const InputDecoration(
                   labelText: 'ลิงก์รูปภาพร้านอาหาร (URL)', 
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.link),
-                  hintText: 'เช่น https://example.com/image.jpg',
+                  hintText: 'https://example.com/image.jpg',
                 ),
+                // 🚩 4. เมื่อพิมพ์เสร็จ ให้แอปอัปเดตรูป Preview ทันที
+                onChanged: (value) => setState(() {}), 
                 validator: (value) => value!.isEmpty ? 'กรุณาวางลิงก์รูปภาพ' : null,
               ),
               const SizedBox(height: 16),
@@ -126,9 +170,10 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
                 validator: (value) => value!.isEmpty ? 'กรุณากรอกชื่อร้าน' : null,
               ),
               const SizedBox(height: 12),
+              
               TextFormField(
                 controller: _categoryController,
-                decoration: const InputDecoration(labelText: 'หมวดหมู่ (เช่น คาเฟ่, อาหารญี่ปุ่น)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'หมวดหมู่', border: OutlineInputBorder()),
                 validator: (value) => value!.isEmpty ? 'กรุณากรอกหมวดหมู่' : null,
               ),
               const SizedBox(height: 12),
@@ -139,8 +184,8 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
                     child: TextFormField(
                       controller: _latController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'ละติจูด (Lat)', border: OutlineInputBorder()),
-                      validator: (value) => value!.isEmpty ? 'ระบุละติจูด' : null,
+                      decoration: const InputDecoration(labelText: 'Lat', border: OutlineInputBorder()),
+                      validator: (value) => value!.isEmpty ? 'ระบุ Lat' : null,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -148,8 +193,8 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
                     child: TextFormField(
                       controller: _lngController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'ลองจิจูด (Lng)', border: OutlineInputBorder()),
-                      validator: (value) => value!.isEmpty ? 'ระบุลองจิจูด' : null,
+                      decoration: const InputDecoration(labelText: 'Lng', border: OutlineInputBorder()),
+                      validator: (value) => value!.isEmpty ? 'ระบุ Lng' : null,
                     ),
                   ),
                 ],
