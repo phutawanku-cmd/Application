@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart'; // 🚩 1. นำเข้าแผนก รปภ. ที่เราเพิ่งสร้าง
+import '../services/auth_service.dart'; 
 import 'register_screen.dart';
+import 'home_screen.dart'; // 🚩 1. อย่าลืมนำเข้า HomeScreen นะครับ!
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,10 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   
-  // 🚩 2. เรียกใช้งาน AuthService
   final AuthService _authService = AuthService();
-  
-  // 🚩 3. ตัวแปรสำหรับควบคุมสถานะ "กำลังโหลด" (ล็อกปุ่ม)
   bool _isLoading = false;
 
   @override
@@ -27,8 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // 🛠️ ฟังก์ชันสำหรับล็อกอิน (แยกออกมาเพื่อให้โค้ดดูสะอาด)
-  // 🛠️ ฟังก์ชันสำหรับล็อกอิน (ฉบับอัปเกรด แก้บั๊ก setState)
+  // 🛠️ ฟังก์ชันสำหรับล็อกอิน (อัปเกรดแก้บั๊กปุ่มค้าง)
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
@@ -39,19 +36,24 @@ class _LoginScreenState extends State<LoginScreen> {
       // 📡 1. ส่งข้อมูลไปให้ Firebase ตรวจสอบ
       var user = await _authService.signInWithEmail(email, password);
 
-      // 🛡️ 2. โล่ป้องกัน! เช็คว่า "หน้า Login นี้ยังเปิดอยู่ไหม?"
-      // ถ้าหน้าโดนทำลายไปแล้ว (เพราะ main.dart เปลี่ยนหน้าให้แล้ว) ให้หยุดการทำงานฟังก์ชันนี้ทันที
       if (!mounted) return;
 
-      // 3. ถ้าล็อกอินล้มเหลว (user == null) ค่อยปลดล็อกปุ่มและโชว์ Error
+      // 2. เช็คผลลัพธ์
       if (user == null) {
+        // ล็อกอินไม่ผ่าน -> ปลดล็อกปุ่มและโชว์ Error
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('❌ อีเมลหรือรหัสผ่านไม่ถูกต้อง!'), backgroundColor: Colors.red),
         );
+      } else {
+        // 🚀 ล็อกอินผ่าน! -> แก้บั๊ก: สั่งปลดล็อกปุ่ม ล้างประวัติหน้าจอเก่า และวาร์ปไปหน้า Home ทันที
+        setState(() => _isLoading = false);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false, // ลบหน้าต่างที่ซ้อนทับอยู่ทิ้งให้หมด
+        );
       }
-      // 💡 ทริก: ถ้า user ไม่เป็น null เราไม่ต้องทำอะไรเลย! ไม่ต้อง pushReplacement 
-      // เพราะ StreamBuilder ใน main.dart จะดึงเราทะลุไปหน้า Home ให้อัตโนมัติครับ
     }
   }
 
@@ -113,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 30),
 
-                // 🚩 4. ปุ่ม Login ที่อัปเกรดแล้ว
+                // 🚩 ปุ่ม Login
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
@@ -122,9 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    // ถ้า _isLoading เป็น true ให้ตั้งค่าเป็น null (ปุ่มจะกดไม่ได้และเป็นสีเทา)
                     onPressed: _isLoading ? null : _login,
-                    // ถ้ากำลังโหลด ให้โชว์วงกลมหมุนๆ ถ้าไม่โหลด ให้โชว์คำว่าเข้าสู่ระบบ
                     child: _isLoading 
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                         : const Text('เข้าสู่ระบบ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -134,7 +134,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 TextButton(
                   onPressed: () {
-                    // 🚀 นำทางไปหน้า RegisterScreen
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const RegisterScreen()),

@@ -1,8 +1,9 @@
-import 'dart:io'; // 🚩 1. นำเข้าเครื่องมือจัดการไฟล์ภาพ
+import 'dart:io'; 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/restaurant.dart';
 
 class DatabaseService {
+  // _db ตัวนี้เป็น CollectionReference ของ 'restaurants' อยู่แล้ว
   final CollectionReference _db = FirebaseFirestore.instance.collection('restaurants');
 
   Stream<List<Restaurant>> getRestaurants() {
@@ -11,7 +12,6 @@ class DatabaseService {
         .toList());
   }
 
-  // 🚩 3. อัปเกรด addRestaurant: รับค่า imageUrl มาด้วยเพื่อบันทึกลงฐานข้อมูล
   Future<void> addRestaurant(String name, String category, double lat, double lng, List<Map<String, dynamic>> menus, String imageUrl) {
     return _db.add({
       'name': name,
@@ -19,14 +19,36 @@ class DatabaseService {
       'lat': lat,
       'lng': lng, 
       'menus': menus,
-      'imageUrl': imageUrl, // ⬅️ จดลิงก์รูปลงสมุด
-      'rating': 0.0, // เพิ่มค่าเริ่มต้นของดาว
+      'imageUrl': imageUrl, 
+      'rating': 0.0, 
       'searchKeywords': [name, category, ...menus.map((m) => m['name'] as String)],
     });
   }
 
-  Future<void> updateRestaurant(String id, String newName) {
-    return _db.doc(id).update({'name': newName});
+  // 🛠️ แก้ไขจุดที่แดง: ลบ .collection('restaurants') ออก
+  Future<void> updateRestaurantFull(
+    String id, 
+    String name, 
+    String category, 
+    double lat, 
+    double lng, 
+    List<Map<String, dynamic>> menus, 
+    String imageUrl
+  ) async {
+    try {
+      // ✅ ใช้ _db.doc(id) ได้เลย เพราะ _db คือ collection 'restaurants' อยู่แล้ว
+      await _db.doc(id).update({
+        'name': name,
+        'category': category,
+        'lat': lat,
+        'lng': lng,
+        'menus': menus,
+        'imageUrl': imageUrl,
+      });
+    } catch (e) {
+      print("❌ Error updating restaurant: $e");
+      rethrow;
+    }
   }
 
   Future<void> deleteRestaurant(String id) {
@@ -118,11 +140,4 @@ class DatabaseService {
       return false;
     }
   }
-
-  // ==========================================
-  // 🖼️ ส่วนจัดการรูปภาพ (Firebase Storage)
-  // ==========================================
-
-  // 🚩 4. ช่างอัปโหลดภาพมาแล้ว! 
-  
-} // 🛑 ปีกกาปิดตัวสุดท้าย
+} // 🛑 จบบริบูรณ์

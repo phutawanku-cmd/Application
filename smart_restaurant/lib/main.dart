@@ -18,24 +18,49 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Smart Restaurant',
+      // 🎨 ธีมหลักฉบับรีโมค: สีส้มสดและมินิมอล
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFFF5722), // สีส้มสดตามเทมเพลต
+          primary: const Color(0xFFFF5722),
+          secondary: const Color(0xFFFFCCBC),
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF8F9FA), // พื้นหลังสีเทาอมขาวสุดพรีเมียม
         useMaterial3: true,
+        // 💳 การ์ดทั้งหมดให้โค้งมนและไร้ขอบแข็ง
+        cardTheme: CardThemeData(
+          elevation: 0,
+          color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        // 🔝 App Bar สีส้ม ตัวหนังสือสีขาว ไอคอนสีขาว
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFFF5722),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: IconThemeData(color: Colors.white),
+        ),
+        // 🔘 ปุ่มกดให้ดูอวบอิ่มน่ากด สีส้ม
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFF5722),
+            foregroundColor: Colors.white,
+            elevation: 2,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+        ),
       ),
-      // 🛠️ 3. ใช้ StreamBuilder เป็นยามเฝ้าประตู สับรางอัตโนมัติ!
       home: StreamBuilder<User?>(
-        // ดักฟังการเปลี่ยนแปลงสถานะ (ล็อกอิน/ล็อกเอาท์)
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          // สถานะที่ 1: กำลังโหลดเช็คข้อมูล (โชว์วงกลมหมุนๆ แป๊บเดียว)
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFFFF5722))));
           }
-          // สถานะที่ 2: พบข้อมูลผู้ใช้ (มี Token ค้างอยู่) -> ยิงไปหน้า Home เลย
           if (snapshot.hasData) {
             return const HomeScreen();
           }
-          // สถานะที่ 3: ไม่พบข้อมูล (เพิ่งโหลดแอปครั้งแรก หรือเพิ่งล็อกเอาท์) -> ไปหน้า Login
           return const LoginScreen();
         },
       ),
