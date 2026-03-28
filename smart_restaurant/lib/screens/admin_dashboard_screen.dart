@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'add_restaurant_screen.dart';
+import 'update_and_delete_screen.dart';
+import 'admin_review_moderation_screen.dart'; // 🚩 นำเข้าหน้าจอจัดการรีวิวสำหรับแอดมิน
+
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -36,7 +38,7 @@ class AdminDashboardScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(builder: (context) => const UpdateAndDeleteScreen()), // 👈 เปลี่ยนตรงนี้
                   );
-            },
+                },
               ),
             ),
             const SizedBox(height: 12),

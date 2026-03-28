@@ -14,7 +14,7 @@ class DatabaseService {
     return _db.add({
       'name': name,
       'category': category,
-      'lat': lat, // 🚩 บันทึกพิกัด
+      'lat': lat,
       'lng': lng, 
       'menus': menus,
       'searchKeywords': [name, category, ...menus.map((m) => m['name'] as String)],
@@ -45,13 +45,12 @@ class DatabaseService {
 
   // 1. [WRITE] ฟังก์ชันเพิ่มรีวิวลงใน Sub-collection 'reviews' ของร้านอาหาร
   Future<void> addReview(String restaurantId, String userId, String userEmail, double rating, String comment) {
-    // วิ่งเข้าไปที่ร้านอาหาร (doc) -> เปิดสมุดเยี่ยมชม (collection) -> เขียนข้อความ (add)
     return _db.doc(restaurantId).collection('reviews').add({
       'userId': userId,             
       'userEmail': userEmail,       
       'rating': rating,           
       'comment': comment,         
-      'timestamp': FieldValue.serverTimestamp(), // 🚩 ประทับตราเวลาของเซิร์ฟเวอร์
+      'timestamp': FieldValue.serverTimestamp(), 
     });
   }
 
@@ -67,4 +66,34 @@ class DatabaseService {
     
     return query.snapshots();
   }
-}
+
+  // ==========================================
+  // ส่วนจัดการของแอดมิน (Admin Features)
+  // ==========================================
+
+  // 🛡️ [ADMIN] 1. ดึงรีวิวทั้งหมดจากทุกร้านอาหารด้วย Collection Group
+  Stream<QuerySnapshot> getAllReviewsForAdmin() {
+    return FirebaseFirestore.instance.collectionGroup('reviews').snapshots();
+  }
+
+  // 🛡️ [ADMIN] 2. ลบรีวิวโดยใช้ DocumentReference
+  Future<void> deleteReview(DocumentReference reviewRef) async {
+    await reviewRef.delete();
+  }
+
+  // 🔐 [SECURITY] 3. ฟังก์ชันตรวจสอบรหัสผ่าน Admin จาก Database
+  Future<bool> verifyAdminPassword(String inputPassword) async {
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance.collection('settings').doc('admin').get();
+      if (doc.exists) {
+        String actualPassword = doc.get('password');
+        return inputPassword == actualPassword;
+      }
+      return false; 
+    } catch (e) {
+      print("❌ Error verifying admin password: $e");
+      return false;
+    }
+  }
+
+} // 🛑 ปีกกาปิดของ class DatabaseService ต้องอยู่บรรทัดล่างสุดตรงนี้เท่านั้นครับ!
