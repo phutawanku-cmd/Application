@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:math' as math;
 import '../services/database_service.dart';
 import '../models/restaurant.dart';
 import 'restaurant_detail_screen.dart';
-import 'admin_dashboard_screen.dart'; // 🚩 นำเข้าหน้า Admin Dashboard
+import 'admin_dashboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,7 +16,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final DatabaseService _dbService = DatabaseService();
   String _searchText = "";
+  bool _isSortingByDistance = false;
   late Stream<List<Restaurant>> _restaurantStream;
+
+  // 📍 พิกัดจำลองของผู้ใช้ (สามารถเปลี่ยนเป็นพิกัดจริงได้ในอนาคต)
+  final double userLat = 13.7563;
+  final double userLng = 100.5018;
 
   @override
   void initState() {
@@ -23,12 +29,20 @@ class _HomeScreenState extends State<HomeScreen> {
     _restaurantStream = _dbService.getRestaurants();
   }
 
-   void _showAdminLoginDialog() {
-    final TextEditingController passwordController = TextEditingController();
+  // 📏 ฟังก์ชันคำนวณระยะทาง (Haversine Formula)
+  double _calculateDistance(double resLat, double resLng) {
+    var p = 0.017453292519943295;
+    var a = 0.5 - math.cos((resLat - userLat) * p) / 2 +
+        math.cos(userLat * p) * math.cos(resLat * p) *
+            (1 - math.cos((resLng - userLng) * p)) / 2;
+    return 12742 * math.asin(math.sqrt(a));
+  }
 
+  void _showAdminLoginDialog() {
+    final TextEditingController passwordController = TextEditingController();
     showDialog(
-      context: context, 
-      builder: (dialogContext) { 
+      context: context,
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('🔐 Admin Mode'),
           content: TextField(
@@ -41,42 +55,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext), // ปิดกล่องเฉพาะเมื่อกดยกเลิก
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey[900], foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
               onPressed: () {
-                String enteredPassword = passwordController.text.trim(); // .trim() ช่วยตัดช่องว่างซ้ายขวาทิ้งให้
-
-                // 🚦 เช็คเงื่อนไขที่ 1: ปล่อยช่องว่าง
-                if (enteredPassword.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('⚠️ กรุณากรอกรหัสผ่านครับ!'), backgroundColor: Colors.orange),
-                  );
-                  // ❌ ไม่เรียก Navigator.pop -> กล่องจะไม่ปิด
-                } 
-                // 🚦 เช็คเงื่อนไขที่ 2: รหัสถูกต้อง
-                else if (enteredPassword == 'admin123') {
-                  // 🧹 สั่งปิดกล่อง Dialog ทันที
+                if (passwordController.text.trim() == 'admin123') {
                   Navigator.pop(dialogContext);
-                  
-                  // 🚀 เปิดหน้า Admin Dashboard
-                  if (mounted) {
-                    Navigator.push(
-                      context, 
-                      MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
-                    );
-                  }
-                } 
-                // 🚦 เช็คเงื่อนไขที่ 3: รหัสผิดพลาด
-                else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('❌ รหัสผ่านไม่ถูกต้อง!'), backgroundColor: Colors.red),
-                  );
-                  // 💡 ทริกวิศวกร: ล้างช่องข้อความให้ผู้ใช้กรอกใหม่ได้ง่ายๆ โดยไม่ต้องกดลบเอง
-                  passwordController.clear();
-                  // ❌ ไม่เรียก Navigator.pop -> กล่องจะไม่ปิด
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDashboardScreen()));
                 }
               },
               child: const Text('เข้าสู่ระบบ'),
@@ -90,44 +77,37 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Smart Restaurant 🍽️'),
+        title: const Text('HungryHeros 🍽️', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.deepOrange,
         actions: [
-          // 🚪 1. ปุ่ม Logout (วางด้านซ้าย)
           IconButton(
-            icon: const Icon(Icons.logout, size: 28),
-            tooltip: 'ออกจากระบบ',
-            onPressed: () async {
-              // ออกจากระบบ (ยามใน main.dart จะเด้งเรากลับหน้า Login ทันที)
-              await FirebaseAuth.instance.signOut();
-            },
+            icon: Icon(_isSortingByDistance ? Icons.near_me : Icons.near_me_outlined),
+            onPressed: () => setState(() => _isSortingByDistance = !_isSortingByDistance),
           ),
-          const SizedBox(width: 8),
-
-          // ⚙️ 2. ปุ่ม Admin Mode (วางด้านขวา)
           IconButton(
-            icon: const Icon(Icons.admin_panel_settings, size: 28), 
-            tooltip: 'Admin Mode',
+            icon: const Icon(Icons.logout),
+            onPressed: () async => await FirebaseAuth.instance.signOut(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.admin_panel_settings),
             onPressed: _showAdminLoginDialog,
           ),
-          const SizedBox(width: 8),
         ],
-        // ... โค้ดส่วน bottom (ช่องค้นหา) ของเดิม ...
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
+          preferredSize: const Size.fromHeight(70),
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(12.0),
             child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'ค้นหาร้าน หรือ ชื่อเมนูอาหาร...',
+              decoration: InputDecoration(
+                hintText: 'ค้นหาร้าน หรือ เมนูอาหาร...',
+                prefixIcon: const Icon(Icons.search, color: Colors.deepOrange),
                 fillColor: Colors.white,
                 filled: true,
-                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
               ),
-              onChanged: (val) {
-                setState(() => _searchText = val);
-              },
+              onChanged: (val) => setState(() => _searchText = val),
             ),
           ),
         ),
@@ -135,58 +115,80 @@ class _HomeScreenState extends State<HomeScreen> {
       body: StreamBuilder<List<Restaurant>>(
         stream: _restaurantStream,
         builder: (context, snapshot) {
-          if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("ไม่มีข้อมูล"));
+          if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("ไม่พบข้อมูลร้านอาหาร"));
 
-          List<Restaurant> allRestaurants = snapshot.data!;
-          
-          List<Restaurant> filteredRestaurants = allRestaurants.where((res) {
-            final searchWord = _searchText.toLowerCase().trim();
-            if (searchWord.isEmpty) return true;
+          List<Restaurant> restaurants = snapshot.data!;
 
-            bool matchNameOrCategory = res.name.toLowerCase().contains(searchWord) || 
-                                       res.category.toLowerCase().contains(searchWord);
-
-            bool matchMenu = res.menus.any((menu) {
-              final menuName = (menu['name'] ?? '').toString().toLowerCase();
-              return menuName.contains(searchWord);
-            });
-
-            return matchNameOrCategory || matchMenu;
+          // 🔍 ค้นหา (Search Logic)
+          List<Restaurant> filtered = restaurants.where((res) {
+            final query = _searchText.toLowerCase();
+            return res.name.toLowerCase().contains(query) || res.category.toLowerCase().contains(query);
           }).toList();
 
-          if (filteredRestaurants.isEmpty) {
-            return Center(
-              child: Text(
-                'ไม่พบร้านที่ขาย "$_searchText"',
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            );
+          // 📍 เรียงลำดับ (Sort Logic)
+          if (_isSortingByDistance) {
+            filtered.sort((a, b) => _calculateDistance(a.lat, a.lng).compareTo(_calculateDistance(b.lat, b.lng)));
           }
 
           return ListView.builder(
-            itemCount: filteredRestaurants.length,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            itemCount: filtered.length,
             itemBuilder: (context, index) {
-              Restaurant res = filteredRestaurants[index];
-              return ListTile(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => RestaurantDetailScreen(restaurant: res),
-                    ),
-                  );
-                },
-                leading: CircleAvatar(
-                  backgroundColor: Colors.deepOrange[100], 
-                  foregroundColor: Colors.deepOrange, 
-                  child: const Icon(Icons.storefront)
+              final res = filtered[index];
+              final dist = _calculateDistance(res.lat, res.lng);
+
+              return GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => RestaurantDetailScreen(restaurant: res))),
+                child: Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  elevation: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                        child: Image.network(
+                          res.imageUrl,
+                          height: 160, width: double.infinity, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(height: 160, color: Colors.grey[200], child: const Icon(Icons.restaurant, size: 50)),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(res.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.star, color: Colors.orange, size: 18),
+                                    Text(' ${res.rating}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text("${res.category} • ${res.priceRange}", style: TextStyle(color: Colors.grey[600])),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on, size: 14, color: Colors.deepOrange),
+                                Text(" ${dist.toStringAsFixed(1)} กม.", style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                                const Spacer(),
+                                Text(res.openingHours, style: const TextStyle(fontSize: 12, color: Colors.green)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                title: Text(res.name),
-                subtitle: Text(res.category),
-                // 🛑 ลบ trailing: Row(...) ที่มีปุ่มแก้ไขและถังขยะออกไปแล้วครับ!
-                // ตอนนี้หน้า Home จะดูสะอาดตา และปลอดภัย 100%
               );
             },
           );
