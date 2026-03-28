@@ -1,6 +1,5 @@
 import 'dart:io'; // 🚩 1. นำเข้าเครื่องมือจัดการไฟล์ภาพ
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart'; // 🚩 2. นำเข้าลานจอดรถ Firebase Storage
 import '../models/restaurant.dart';
 
 class DatabaseService {
@@ -125,18 +124,5 @@ class DatabaseService {
   // ==========================================
 
   // 🚩 4. ช่างอัปโหลดภาพมาแล้ว! 
-  Future<String?> uploadRestaurantImage(File imageFile) async {
-    try {
-      String fileName = 'restaurant_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference storageRef = FirebaseStorage.instance.ref().child('restaurant_images/$fileName');
-      UploadTask uploadTask = storageRef.putFile(imageFile);
-      TaskSnapshot snapshot = await uploadTask;
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-      return downloadUrl; 
-    } catch (e) {
-      print('❌ Error uploading image: $e');
-      return null;
-    }
-  }
-
+  
 } // 🛑 ปีกกาปิดตัวสุดท้าย
