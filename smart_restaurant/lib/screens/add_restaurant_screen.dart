@@ -9,17 +9,23 @@ class AddRestaurantScreen extends StatefulWidget {
 }
 
 class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _categoryController = TextEditingController();
-  // 🚩 เพิ่ม Controller สำหรับพิกัด (ใส่ค่าโซนชลบุรีไว้เป็น Default ให้เทสง่ายๆ)
-  final TextEditingController _latController = TextEditingController(text: "13.0833"); 
-  final TextEditingController _lngController = TextEditingController(text: "100.9261");
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _categoryController = TextEditingController();
   
-  final DatabaseService _dbService = DatabaseService();
-  final List<Map<String, TextEditingController>> _menuControllers = [];
-  bool _isLoading = false;
+  // 🔗 เพิ่มกล่องรับลิงก์รูปภาพ (Image URL)
+  final _imageUrlController = TextEditingController(); 
 
-  void _addMenuItemField() {
+  // 📍 กล่องควบคุมพิกัด
+  final _latController = TextEditingController();
+  final _lngController = TextEditingController();
+
+  final DatabaseService _dbService = DatabaseService();
+  bool _isLoading = false; 
+
+  final List<Map<String, TextEditingController>> _menuControllers = [];
+
+  void _addMenuField() {
     setState(() {
       _menuControllers.add({
         'name': TextEditingController(),
@@ -28,42 +34,50 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
     });
   }
 
-  void _removeMenuItemField(int index) {
-    setState(() => _menuControllers.removeAt(index));
+  void _removeMenuField(int index) {
+    setState(() {
+      _menuControllers[index]['name']?.dispose();
+      _menuControllers[index]['price']?.dispose();
+      _menuControllers.removeAt(index);
+    });
   }
 
-  Future<void> _saveData() async {
-    if (_nameController.text.isEmpty || _categoryController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('กรุณากรอกข้อมูลให้ครบ')));
-      return;
-    }
+  Future<void> _saveRestaurant() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
 
-    setState(() => _isLoading = true);
+      try {
+        double lat = double.tryParse(_latController.text) ?? 0.0;
+        double lng = double.tryParse(_lngController.text) ?? 0.0;
 
-    // 🚩 ดึงค่าพิกัดมาแปลงเป็นตัวเลข
-    double lat = double.tryParse(_latController.text.trim()) ?? 0.0;
-    double lng = double.tryParse(_lngController.text.trim()) ?? 0.0;
+        List<Map<String, dynamic>> menuData = _menuControllers.map((m) {
+          return {
+            'name': m['name']!.text,
+            'price': double.tryParse(m['price']!.text) ?? 0.0,
+          };
+        }).toList();
 
-    List<Map<String, dynamic>> menusToSave = _menuControllers.map((controllers) {
-      return {
-        'name': controllers['name']!.text.trim(),
-        'price': int.tryParse(controllers['price']!.text.trim()) ?? 0,
-      };
-    }).toList();
+        // 🚀 สั่งบันทึกลงฐานข้อมูล โดยโยนลิงก์รูปภาพเข้าไปตรงๆ เลย!
+        await _dbService.addRestaurant(
+          _nameController.text,
+          _categoryController.text,
+          lat,
+          lng,
+          menuData, 
+          _imageUrlController.text, // 🚩 ดึงข้อความจากช่องกรอกลิงก์ส่งไปเลย
+        );
 
-    try {
-      // 🚩 ส่งพิกัดเข้าไปด้วย
-      await _dbService.addRestaurant(
-        _nameController.text.trim(),
-        _categoryController.text.trim(),
-        lat,
-        lng,
-        menusToSave,
-      );
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ เพิ่มร้านอาหารพร้อมเมนูเรียบร้อย!')));
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ เกิดข้อผิดพลาด: $e')));
+        }
+      } finally {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -71,11 +85,12 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
   void dispose() {
     _nameController.dispose();
     _categoryController.dispose();
+    _imageUrlController.dispose(); // กวาดขยะตัวนี้ด้วย
     _latController.dispose();
     _lngController.dispose();
-    for (var controllers in _menuControllers) {
-      controllers['name']!.dispose();
-      controllers['price']!.dispose();
+    for (var m in _menuControllers) {
+      m['name']?.dispose();
+      m['price']?.dispose();
     }
     super.dispose();
   }
@@ -83,53 +98,126 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('เพิ่มร้านอาหารใหม่'), backgroundColor: Colors.deepOrange),
+      appBar: AppBar(title: const Text('เพิ่มร้านอาหารใหม่')),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'ชื่อร้านอาหาร', border: OutlineInputBorder())),
-              const SizedBox(height: 16),
-              TextField(controller: _categoryController, decoration: const InputDecoration(labelText: 'หมวดหมู่', border: OutlineInputBorder())),
-              const SizedBox(height: 16),
               
-              // 🚩 ส่วนกรอกพิกัดแบบง่ายๆ
+              // 🔗 ช่องกรอกลิงก์รูปภาพ (ง่ายและชัวร์สุด!)
+              TextFormField(
+                controller: _imageUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'ลิงก์รูปภาพร้านอาหาร (URL)', 
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.link),
+                  hintText: 'เช่น https://example.com/image.jpg',
+                ),
+                validator: (value) => value!.isEmpty ? 'กรุณาวางลิงก์รูปภาพ' : null,
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(labelText: 'ชื่อร้านอาหาร', border: OutlineInputBorder()),
+                validator: (value) => value!.isEmpty ? 'กรุณากรอกชื่อร้าน' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _categoryController,
+                decoration: const InputDecoration(labelText: 'หมวดหมู่ (เช่น คาเฟ่, อาหารญี่ปุ่น)', border: OutlineInputBorder()),
+                validator: (value) => value!.isEmpty ? 'กรุณากรอกหมวดหมู่' : null,
+              ),
+              const SizedBox(height: 12),
+
               Row(
                 children: [
-                  Expanded(child: TextField(controller: _latController, decoration: const InputDecoration(labelText: 'ละติจูด (Lat)', border: OutlineInputBorder()), keyboardType: TextInputType.number)),
-                  const SizedBox(width: 16),
-                  Expanded(child: TextField(controller: _lngController, decoration: const InputDecoration(labelText: 'ลองจิจูด (Lng)', border: OutlineInputBorder()), keyboardType: TextInputType.number)),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _latController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'ละติจูด (Lat)', border: OutlineInputBorder()),
+                      validator: (value) => value!.isEmpty ? 'ระบุละติจูด' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _lngController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'ลองจิจูด (Lng)', border: OutlineInputBorder()),
+                      validator: (value) => value!.isEmpty ? 'ระบุลองจิจูด' : null,
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const Divider(height: 32, thickness: 2),
 
-              const Text('เมนูอาหาร', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _menuControllers.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: Row(
-                      children: [
-                        Expanded(child: TextField(controller: _menuControllers[index]['name'], decoration: const InputDecoration(hintText: 'ชื่อเมนู', border: OutlineInputBorder()))),
-                        const SizedBox(width: 8),
-                        SizedBox(width: 80, child: TextField(controller: _menuControllers[index]['price'], decoration: const InputDecoration(hintText: 'ราคา', border: OutlineInputBorder()), keyboardType: TextInputType.number)),
-                        const SizedBox(width: 8),
-                        IconButton(icon: const Icon(Icons.remove_circle, color: Colors.red), onPressed: () => _removeMenuItemField(index)),
-                      ],
-                    ),
-                  );
-                },
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('รายการเมนูอาหาร', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
+                    onPressed: _addMenuField,
+                    icon: const Icon(Icons.add),
+                    label: const Text('เพิ่มเมนู'),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
-              SizedBox(width: double.infinity, child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[200], foregroundColor: Colors.deepOrange, padding: const EdgeInsets.symmetric(vertical: 16)), onPressed: _addMenuItemField, icon: const Icon(Icons.add_circle), label: const Text('➕ เพิ่มเมนูอาหาร'))),
+              
+              ..._menuControllers.asMap().entries.map((entry) {
+                int index = entry.key;
+                var menu = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextFormField(
+                          controller: menu['name'],
+                          decoration: const InputDecoration(labelText: 'ชื่อเมนู', border: OutlineInputBorder()),
+                          validator: (value) => value!.isEmpty ? 'กรุณากรอกชื่อ' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 1,
+                        child: TextFormField(
+                          controller: menu['price'],
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'ราคา', border: OutlineInputBorder()),
+                          validator: (value) => value!.isEmpty ? 'กรอกราคา' : null,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _removeMenuField(index), 
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
               const SizedBox(height: 24),
-              SizedBox(width: double.infinity, height: 50, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, foregroundColor: Colors.white), onPressed: _isLoading ? null : _saveData, child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('บันทึกข้อมูล', style: TextStyle(fontSize: 18)))),
+
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                  onPressed: _isLoading ? null : _saveRestaurant,
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('บันทึกข้อมูลร้านและเมนู', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 40),
             ],
           ),
         ),

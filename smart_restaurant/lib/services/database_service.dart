@@ -1,4 +1,6 @@
+import 'dart:io'; // 🚩 1. นำเข้าเครื่องมือจัดการไฟล์ภาพ
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // 🚩 2. นำเข้าลานจอดรถ Firebase Storage
 import '../models/restaurant.dart';
 
 class DatabaseService {
@@ -10,13 +12,16 @@ class DatabaseService {
         .toList());
   }
 
-  Future<void> addRestaurant(String name, String category, double lat, double lng, List<Map<String, dynamic>> menus) {
+  // 🚩 3. อัปเกรด addRestaurant: รับค่า imageUrl มาด้วยเพื่อบันทึกลงฐานข้อมูล
+  Future<void> addRestaurant(String name, String category, double lat, double lng, List<Map<String, dynamic>> menus, String imageUrl) {
     return _db.add({
       'name': name,
       'category': category,
       'lat': lat,
       'lng': lng, 
       'menus': menus,
+      'imageUrl': imageUrl, // ⬅️ จดลิงก์รูปลงสมุด
+      'rating': 0.0, // เพิ่มค่าเริ่มต้นของดาว
       'searchKeywords': [name, category, ...menus.map((m) => m['name'] as String)],
     });
   }
@@ -29,7 +34,6 @@ class DatabaseService {
     return _db.doc(id).delete();
   }
 
-  // [SEARCH] ค้นหาร้านอาหารตาม Keyword
   Stream<List<Restaurant>> searchRestaurants(String query) {
     return _db
         .where('searchKeywords', arrayContains: query)
@@ -43,18 +47,39 @@ class DatabaseService {
   // ส่วนจัดการระบบรีวิว (Review & Rating)
   // ==========================================
 
-  // 1. [WRITE] ฟังก์ชันเพิ่มรีวิวลงใน Sub-collection 'reviews' ของร้านอาหาร
-  Future<void> addReview(String restaurantId, String userId, String userEmail, double rating, String comment) {
-    return _db.doc(restaurantId).collection('reviews').add({
+  Future<void> _updateAverageRating(String restaurantId) async {
+    try {
+      QuerySnapshot reviewsSnapshot = await _db.doc(restaurantId).collection('reviews').get();
+
+      if (reviewsSnapshot.docs.isEmpty) {
+        await _db.doc(restaurantId).update({'rating': 0.0});
+        return;
+      }
+
+      double totalStars = 0;
+      for (var doc in reviewsSnapshot.docs) {
+        totalStars += (doc.data() as Map<String, dynamic>)['rating'] ?? 0.0;
+      }
+
+      double averageRating = totalStars / reviewsSnapshot.docs.length;
+      await _db.doc(restaurantId).update({'rating': averageRating});
+      
+    } catch (e) {
+      print('❌ Error updating average rating: $e');
+    }
+  }
+
+  Future<void> addReview(String restaurantId, String userId, String userEmail, double rating, String comment) async {
+    await _db.doc(restaurantId).collection('reviews').add({
       'userId': userId,             
       'userEmail': userEmail,       
       'rating': rating,           
       'comment': comment,         
       'timestamp': FieldValue.serverTimestamp(), 
     });
+    await _updateAverageRating(restaurantId);
   }
 
-  // 2. [READ] ฟังก์ชันดึงข้อมูลรีวิวทั้งหมดของร้านนั้นๆ ออกมาแสดงแบบ Real-time
   Stream<QuerySnapshot> getReviews(String restaurantId, {int? limit}) {
     var query = _db.doc(restaurantId)
         .collection('reviews')
@@ -71,17 +96,16 @@ class DatabaseService {
   // ส่วนจัดการของแอดมิน (Admin Features)
   // ==========================================
 
-  // 🛡️ [ADMIN] 1. ดึงรีวิวทั้งหมดจากทุกร้านอาหารด้วย Collection Group
   Stream<QuerySnapshot> getAllReviewsForAdmin() {
     return FirebaseFirestore.instance.collectionGroup('reviews').snapshots();
   }
 
-  // 🛡️ [ADMIN] 2. ลบรีวิวโดยใช้ DocumentReference
   Future<void> deleteReview(DocumentReference reviewRef) async {
+    String restaurantId = reviewRef.parent.parent!.id;
     await reviewRef.delete();
+    await _updateAverageRating(restaurantId);
   }
 
-  // 🔐 [SECURITY] 3. ฟังก์ชันตรวจสอบรหัสผ่าน Admin จาก Database
   Future<bool> verifyAdminPassword(String inputPassword) async {
     try {
       DocumentSnapshot doc = await FirebaseFirestore.instance.collection('settings').doc('admin').get();
@@ -96,4 +120,23 @@ class DatabaseService {
     }
   }
 
-} // 🛑 ปีกกาปิดของ class DatabaseService ต้องอยู่บรรทัดล่างสุดตรงนี้เท่านั้นครับ!
+  // ==========================================
+  // 🖼️ ส่วนจัดการรูปภาพ (Firebase Storage)
+  // ==========================================
+
+  // 🚩 4. ช่างอัปโหลดภาพมาแล้ว! 
+  Future<String?> uploadRestaurantImage(File imageFile) async {
+    try {
+      String fileName = 'restaurant_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference storageRef = FirebaseStorage.instance.ref().child('restaurant_images/$fileName');
+      UploadTask uploadTask = storageRef.putFile(imageFile);
+      TaskSnapshot snapshot = await uploadTask;
+      String downloadUrl = await snapshot.ref.getDownloadURL();
+      return downloadUrl; 
+    } catch (e) {
+      print('❌ Error uploading image: $e');
+      return null;
+    }
+  }
+
+} // 🛑 ปีกกาปิดตัวสุดท้าย

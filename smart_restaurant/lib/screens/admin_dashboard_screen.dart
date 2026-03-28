@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'update_and_delete_screen.dart';
 import 'admin_review_moderation_screen.dart'; // 🚩 นำเข้าหน้าจอจัดการรีวิวสำหรับแอดมิน
+import 'admin_analytics_screen.dart';
+import 'add_restaurant_screen.dart'; // 🚩 นำเข้าหน้าเพิ่มร้านอาหาร
 
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -36,7 +38,7 @@ class AdminDashboardScreen extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const UpdateAndDeleteScreen()), // 👈 เปลี่ยนตรงนี้
+                    MaterialPageRoute(builder: (context) => const AddRestaurantScreen()), // 👈 เปลี่ยนตรงนี้
                   );
                 },
               ),
@@ -74,8 +76,10 @@ class AdminDashboardScreen extends StatelessWidget {
                 subtitle: const Text('ดูจำนวนผู้เข้าชม และร้านยอดนิยม'),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('สถิติระบบจะมาพร้อมกับ User Authentication 🚧')),
+                  // 🚀 เด้งไปหน้า Analytics!
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AdminAnalyticsScreen()),
                   );
                 },
               ),

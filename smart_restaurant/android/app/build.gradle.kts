@@ -10,7 +10,7 @@ android {
     namespace = "com.example.smart_restaurant"
     
     // 🚩 แก้จุดที่ 1: ใส่เลข 34 ลงไปตรงๆ แทน flutter.compileSdkVersion
-    compileSdk = 34 
+    compileSdk = 36
 
     // 🚩 แก้จุดที่ 2: ลบบรรทัด ndkVersion ออก หรือคอมเมนต์ไว้ (เพื่อเลิกใช้ NDK ที่พัง)
     // ndkVersion = flutter.ndkVersion 
