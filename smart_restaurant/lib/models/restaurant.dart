@@ -8,10 +8,12 @@ class Restaurant {
   final String openingHours;
   final double rating;
   final String description;
-  final String imageUrl; // 🚩 เพิ่มเพื่อให้ Card มีรูปสวยๆ
+  final String imageUrl;
   final List<String> searchKeywords;
   final List<Map<String, dynamic>> menus;
+  // 🚩 เพิ่มตัวแปรนี้เพื่อใช้เก็บระยะทางที่คำนวณได้ (ไม่ต้องส่งมาจาก Firestore)
 
+  double? distance;
   Restaurant({
     required this.id,
     required this.name,
@@ -22,9 +24,10 @@ class Restaurant {
     required this.openingHours,
     required this.rating,
     required this.description,
-    required this.imageUrl, // 🚩 เพิ่มใน Constructor
+    required this.imageUrl,
     required this.searchKeywords,
     required this.menus,
+    this.distance, // 🚩 เพิ่มใน Constructor แบบ optional
   });
 
   factory Restaurant.fromFirestore(String id, Map<String, dynamic> data) {
@@ -38,7 +41,7 @@ class Restaurant {
       openingHours: data['openingHours'] ?? 'ไม่ระบุ',
       rating: (data['rating'] ?? 0.0).toDouble(),
       description: data['description'] ?? '',
-      imageUrl: data['imageUrl'] ?? '', // 🚩 ดึง URL รูปภาพ
+      imageUrl: data['imageUrl'] ?? '',
       searchKeywords: List<String>.from(data['searchKeywords'] ?? []),
       menus: List<Map<String, dynamic>>.from(data['menus'] ?? []),
     );
@@ -54,9 +57,10 @@ class Restaurant {
       'openingHours': openingHours,
       'rating': rating,
       'description': description,
-      'imageUrl': imageUrl, // 🚩 บันทึก URL รูปภาพ
+      'imageUrl': imageUrl,
       'searchKeywords': searchKeywords,
       'menus': menus,
     };
   }
-} //
+}
+ 
