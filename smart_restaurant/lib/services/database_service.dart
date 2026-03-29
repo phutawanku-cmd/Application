@@ -1,4 +1,4 @@
-import 'dart:io'; // 🚩 1. นำเข้าเครื่องมือจัดการไฟล์ภาพ
+// 🚩 1. นำเข้าเครื่องมือจัดการไฟล์ภาพ
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/restaurant.dart';
 
