@@ -1,94 +1,65 @@
-# 🍽️ Smart Restaurant App (Flutter + Firebase)
+# 🍽️ Smart Restaurant App
 
-แอปพลิเคชันค้นหาและแสดงรายการร้านอาหาร พัฒนาด้วยสถาปัตยกรรมแบบ Full-Stack โดยใช้ **Flutter** สำหรับหน้าบ้าน (Frontend) และ **Firebase Cloud Firestore** สำหรับระบบฐานข้อมูลแบบเรียลไทม์ (Real-time Database)
-
----
-
-## ✨ ฟีเจอร์หลัก (Key Features)
-* 🔐 **Authentication:** ระบบสมัครสมาชิกและเข้าสู่ระบบด้วย Email/Password (Firebase Auth) พร้อมระบบ Auto-Login สลับหน้าจออัตโนมัติ
-* 📡 **Real-time Database:** ดึงข้อมูลร้านอาหารและอัปเดตหน้าจอทันทีเมื่อมีข้อมูลใหม่โดยไม่ต้องกดรีเฟรช (StreamBuilder)
-* 📍 **Geolocation Math:** คำนวณระยะทางจากพิกัดผู้ใช้ถึงร้านอาหารด้วยสมการ Haversine Formula
-* 🌟 **Review & Rating System:** ระบบเขียนรีวิวและให้คะแนนดาว พร้อมโชว์รีวิวล่าสุดแบบจำกัดจำนวน (Pagination) เพื่อประหยัดทรัพยากร
-* 🛡️ **Admin Mode:** ระบบซ่อนสิทธิ์การเพิ่มร้านอาหารเฉพาะผู้ดูแลระบบ
+แอปพลิเคชันค้นหาและรีวิวร้านอาหารอัจฉริยะ พัฒนาด้วย **Flutter** และ **Firebase** โดดเด่นด้วยระบบคำนวณระยะทางจาก GPS จริงแบบ Real-time พร้อม UI/UX ระดับพรีเมียมที่ออกแบบมาเพื่อประสบการณ์การใช้งานที่ลื่นไหล
 
 ---
 
-## 🚀 การติดตั้งและใช้งาน (Setup & Installation)
+## ✨ Features (ฟีเจอร์หลัก)
 
-### 1. Clone โปรเจกต์
-```bash
-git clone [https://github.com/USERNAME/Application.git](https://github.com/USERNAME/Application.git)
-cd Application/smart_restaurant
+### 👤 สำหรับผู้ใช้งานทั่วไป (User App)
+* **📍 Fast Location & WGS84 Distance:** ระบบดึงพิกัด GPS ความเร็วสูง พร้อมคำนวณระยะทางจากผู้ใช้ถึงร้านอาหารอย่างแม่นยำ (กิโลเมตร)
+* **🔥 Smart Grouping:** จัดกลุ่มร้านอาหารอัตโนมัติ
+  * ร้านเด็ดห้ามพลาด (จัดอันดับตามคะแนนรีวิวสูงสุด Top 4)
+  * ร้านอาหารใกล้ฉัน (รัศมีไม่เกิน 10 กิโลเมตร)
+  * ร้านอาหารอื่นๆ 
+* **🔍 Real-time Search:** ค้นหาร้านอาหารจาก "ชื่อร้าน" หรือ "หมวดหมู่" ได้ทันที
+* **🌟 Rating & Review System:** ระบบให้คะแนนดาว (1-5 ดาว) และเขียนรีวิวความประทับใจ พร้อมแสดงผลแบบ Real-time
+* **🎨 Premium UI/UX:** * Seamless Gradient Header (ไล่สีส้มไร้รอยต่อ)
+  * Data Badges (ป้ายกำกับข้อมูลอ่านง่าย)
+  * Floating Elevated Buttons (ปุ่มลอยมีมิติพร้อมเงาเรืองแสง)
 
-2. ติดตั้ง Dependencies
+### 🛡️ สำหรับผู้ดูแลระบบ (Executive Dashboard)
+* **🔐 Admin Authentication:** ระบบยืนยันตัวตนด้วยรหัสผ่านก่อนเข้าถึงข้อมูลหลังบ้าน
+* **📊 Dashboard Stats:** หน้าต่างสรุปผลการดำเนินงาน (ยอดขาย, อัตราการแปลง, จำนวนผู้ใช้)
+* **📝 Restaurant Management:** เพิ่ม, ลบ, แก้ไข ข้อมูลร้านอาหาร (ชื่อ, หมวดหมู่, พิกัด Lat/Lng, ลิงก์รูปภาพ) และจัดการเมนูอาหาร
+
+---
+
+## 🛠️ Tech Stack (เทคโนโลยีที่ใช้)
+* **Frontend:** Flutter (Dart)
+* **Backend (BaaS):** Firebase
+  * **Authentication:** ระบบจัดการผู้ใช้งาน
+  * **Cloud Firestore:** ฐานข้อมูล NoSQL สำหรับเก็บข้อมูลร้านอาหาร เมนู และรีวิว
+* **Location Services:** `geolocator` package สำหรับดึงพิกัด GPS
+* **State Management:** `StatefulWidget` & `StreamBuilder` สำหรับดึงข้อมูลแบบ Real-time
+
+---
+
+## 🚀 Getting Started (วิธีการติดตั้งและรันโปรเจกต์)
+
+### สิ่งที่ต้องมีเบื้องต้น (Prerequisites)
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (เวอร์ชันล่าสุด)
+- บัญชี [Firebase](https://firebase.google.com/) พร้อมตั้งค่าโปรเจกต์ Android/iOS เรียบร้อยแล้ว
+
+### ขั้นตอนการรัน (Installation)
+1. โคลนโปรเจกต์นี้ลงในเครื่องของคุณ:
+   ```bash
+   git clone [https://github.com/YOUR_USERNAME/smart_restaurant.git](https://github.com/YOUR_USERNAME/smart_restaurant.git)
+เข้าไปยังโฟลเดอร์โปรเจกต์:
+
 Bash
-flutter clean
+cd smart_restaurant
+ติดตั้ง Package ต่างๆ ที่จำเป็น:
+
+Bash
 flutter pub get
-3. 🔥 การตั้งค่า Firebase (SECURITY WARNING)
-⚠️ คำเตือนด้านความปลอดภัย: โปรเจกต์นี้ไม่ได้แนบไฟล์ google-services.json มาด้วยเพื่อความปลอดภัยของฐานข้อมูล คุณต้องสร้างและเชื่อมต่อโปรเจกต์ Firebase ของคุณเอง
+สำคัญ: นำไฟล์การตั้งค่า Firebase มาใส่ในโปรเจกต์
 
-ขั้นตอนการเชื่อมต่อ:
+Android: นำ google-services.json ไปวางที่ android/app/
 
-ไปที่ Firebase Console
+iOS: นำ GoogleService-Info.plist ไปวางที่ ios/Runner/
 
-สร้าง Project ใหม่ และเปิดใช้งาน Authentication (Email/Password) และ Firestore Database (Test Mode)
-
-กด Add Android App และใส่ Package Name: com.example.smart_restaurant
-
-ดาวน์โหลดไฟล์ google-services.json
-
-นำไฟล์ไปวางไว้ที่โฟลเดอร์: android/app/google-services.json
-(หมายเหตุ: ไฟล์นี้ถูกตั้งค่าใน .gitignore ไว้แล้ว เพื่อป้องกันการเผลออัปโหลดขึ้น GitHub)
-
-🗄️ โครงสร้างฐานข้อมูล (Database Schema)
-ในการทดสอบระบบ ให้สร้าง Collection ใน Firestore ตามโครงสร้าง NoSQL ดังนี้:
-
-Collection: restaurants
-
-JSON
-{
-  "name": "ข้าวมันไก่เจ๊ป้อม",
-  "category": "อาหารไทย",
-  "lat": 13.0850,
-  "lng": 100.9300,
-  "menus": [
-    { "name": "ข้าวมันไก่ต้ม", "price": 50 },
-    { "name": "ข้าวมันไก่ทอด", "price": 50 }
-  ]
-}
-(เมื่อผู้ใช้กดรีวิว ระบบจะสร้าง Sub-collection reviews ซ้อนอยู่ข้างในร้านอาหารนั้นๆ ให้อัตโนมัติ)
-
-📱 การรันแอปพลิเคชัน
-1. เช็คอุปกรณ์ที่เชื่อมต่อ (Emulator หรือ เครื่องจริง):
-
-Bash
-flutter devices
-2. สตาร์ทแอปพลิเคชัน:
+รันแอปพลิเคชัน:
 
 Bash
 flutter run
-Developed with ❤️ using Flutter & Firebase
-
-
----
-
-### 🎓 อธิบายหลักการวิศวกรรม (Engineering Insights): พลังของ README
-
-ในวงการอุตสาหกรรมซอฟต์แวร์ ไฟล์ **README.md** ไม่ใช่แค่คำอธิบายโปรเจกต์ แต่มันคือ **"หน้าตาและเรซูเม่ของวิศวกร"** ครับ 
-* เวลาที่คุณไปสัมภาษณ์งาน กรรมการหรือ Senior Developer จะกดเข้ามาดู GitHub ของคุณ สิ่งแรกที่เขาอ่านคือ README 
-* โครงสร้างที่ผมร่างให้ จะแสดงให้เห็นว่าคุณเข้าใจทั้งภาพรวมของ **Tech Stack (Flutter+Firebase)**, เข้าใจ **สถาปัตยกรรมข้อมูล (Database Schema)**, และที่สำคัญคือเข้าใจเรื่อง **ความปลอดภัย (Security Awareness)** ครับ ซึ่งเป็นคุณสมบัติที่บริษัทไอทีระดับท็อปมองหาเลยครับ!
-
-**💡 ข้อควรระวังสุดท้ายก่อน Push โค้ด:**
-ตรวจสอบให้แน่ใจว่าไฟล์ `.gitignore` ของคุณ (อยู่ในโฟลเดอร์หลักของ Flutter) มีบรรทัดนี้อยู่แล้วนะครับ (ปกติ Flutter จะใส่มาให้เป็นค่าเริ่มต้น):
-```text
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.buildlog/
-.history
-.svn/
-android/app/google-services.json

@@ -18,8 +18,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   final DatabaseService _dbService = DatabaseService();
   final User? currentUser = FirebaseAuth.instance.currentUser; 
 
-  // 🚩 [ลบฟังก์ชัน _calculateDistance ทิ้ง] เพราะเราจะใช้ค่าที่คำนวณมาจากหน้าแรกแล้ว
-
   void _showReviewDialog() {
     final TextEditingController commentController = TextEditingController();
     double currentRating = 5.0;
@@ -89,42 +87,116 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     );
   }
 
+  // 🎨 ฟังก์ชันช่วยสร้าง Placeholder เมื่อไม่มีรูปปกร้าน คุมโทนส้มสวยงาม
+  Widget _buildPlaceholderHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFFF5722), Color(0xFFFF8A65)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.restaurant_menu_rounded, size: 80, color: Colors.white.withOpacity(0.4)),
+            const SizedBox(height: 10),
+            Text('Smart Restaurant', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 🚩 [ลบพิกัด myLat, myLng หลอกๆ ออก] 
-    // และดึงค่าระยะทางมาจาก Object restaurant ที่หน้าแรกส่งมาให้
     double? displayDistance = widget.restaurant.distance;
 
     return Scaffold(
+      backgroundColor: Colors.white, // ปรับพื้นหลังหน้าจอเป็นสีขาวเพื่อความคลีน
       appBar: AppBar(
-        title: Text(widget.restaurant.name),
-        backgroundColor: const Color(0xFFE64A19),
+        title: Text(widget.restaurant.name, style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5)),
+        // 🎨 ปรับ AppBar ให้ไล่สีเฉียงๆ สวยๆ เหมือนหน้าแรก
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFFF5722), Color(0xFFFF8A65)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        elevation: 0,
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ส่วนแสดงข้อมูลเบื้องต้น
+            // --- 📸 NEW FEATURE: ส่วนแสดงรูปภาพปกร้าน (Cover Image) แบบพรีเมียม ---
+            ClipRRect(
+              // 🎨 ทำส่วนโค้งมนด้านล่างของปกร้านนิดหน่อยให้ดูละมุน
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              child: Container(
+                height: 220, // 🚀 กรอบใส่ภาพขนาดคงที่
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 10))
+                  ],
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // --- 🚀 การจัดการรูปภาพแบบไม่ล้นกรอบ ---
+                    widget.restaurant.imageUrl.isNotEmpty
+                        ? Image.network(
+                            widget.restaurant.imageUrl,
+                            fit: BoxFit.cover, // 🚀 ทำให้รูปขยายเต็มกรอบแบบไม่เสียสัดส่วน
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildPlaceholderHeader(); // แสดง Placeholder ถ้าลิงก์รูปพัง
+                            },
+                          )
+                        : _buildPlaceholderHeader(), // แสดง Placeholder ถ้าไม่มี URL
+                  ],
+                ),
+              ),
+            ),
+            // --- จบส่วนปกร้าน ---
+
+            // --- 📍 ส่วนแสดงข้อมูลเบื้องต้น (ปรับปรุง Layout ใหม่อีกนิด) ---
             Container(
               width: double.infinity,
-              color: const Color(0xFFE64A19).withOpacity(0.05),
-              padding: const EdgeInsets.all(20),
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('หมวดหมู่: ${widget.restaurant.category}', style: const TextStyle(fontSize: 16, color: Color(0xFFE64A19), fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(Icons.location_on, color: Colors.redAccent, size: 20),
-                      const SizedBox(width: 6),
-                      // 🚩 แสดงระยะทางที่ส่งมาจากหน้าแรก (เชื่อถือได้ 100%)
-                      Text(
-                        displayDistance != null 
-                          ? 'ห่างจากคุณ: ${displayDistance.toStringAsFixed(2)} กม.' 
-                          : 'กำลังคำนวณระยะทาง...', 
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
+                        child: Text(widget.restaurant.category, style: const TextStyle(fontSize: 14, color: Colors.deepOrange, fontWeight: FontWeight.w900)),
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 20),
+                          const SizedBox(width: 4),
+                          Text(
+                            displayDistance != null 
+                              ? '${displayDistance.toStringAsFixed(2)} กม.' 
+                              : 'กำลังคำนวณ...', 
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.black87)
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -133,7 +205,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
             ),
             
             const Padding(
-              padding: EdgeInsets.fromLTRB(20, 24, 20, 10),
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 10),
               child: Text('รายการเมนูอาหาร 🍽️', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
             ),
             

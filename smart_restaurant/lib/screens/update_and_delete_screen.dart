@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // 🚩 เพิ่ม import นี้สำหรับอัปเดตข้อมูล
 import '../services/database_service.dart';
 import '../models/restaurant.dart';
-import 'edit_restaurant_screen.dart'; // 🚩 ตรวจสอบว่ามีบรรทัดนี้
+import 'edit_restaurant_screen.dart'; 
 
 class UpdateAndDeleteScreen extends StatefulWidget {
   const UpdateAndDeleteScreen({super.key});
@@ -13,7 +14,7 @@ class UpdateAndDeleteScreen extends StatefulWidget {
 class _UpdateAndDeleteScreenState extends State<UpdateAndDeleteScreen> {
   final DatabaseService _dbService = DatabaseService();
 
-  // 🗑️ ฟังก์ชันลบร้าน (คงไว้เหมือนเดิม)
+  // 🗑️ ฟังก์ชันลบร้าน
   void _confirmDelete(BuildContext context, String id, String name) {
     showDialog(
       context: context,
@@ -60,7 +61,53 @@ class _UpdateAndDeleteScreenState extends State<UpdateAndDeleteScreen> {
     );
   }
 
-  // 🚩 หมายเหตุ: เราลบฟังก์ชัน _showEditDialog ออกไปแล้ว เพราะเราจะไปใช้หน้า Edit Screen แทน
+  // 📸 ฟังก์ชันอัปเดตรูปภาพด่วน (Quick Image Update)
+  void _showUpdateImageDialog(BuildContext context, String id, String currentUrl) {
+    final TextEditingController urlController = TextEditingController(text: currentUrl);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('อัปเดตรูปภาพร้าน 📸', style: TextStyle(fontWeight: FontWeight.w900)),
+        content: TextField(
+          controller: urlController,
+          decoration: InputDecoration(
+            labelText: 'ลิงก์รูปภาพ (Image URL)',
+            hintText: 'วางลิงก์รูปภาพใหม่ที่นี่...',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.deepOrange, width: 2)),
+            prefixIcon: const Icon(Icons.link, color: Colors.deepOrange),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepOrange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              final newUrl = urlController.text.trim();
+              // อัปเดตไปยัง Firestore โดยตรงแบบรวดเร็ว
+              await FirebaseFirestore.instance.collection('restaurants').doc(id).update({'imageUrl': newUrl});
+              if (context.mounted) Navigator.pop(context);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('📸 อัปเดตรูปภาพเรียบร้อย!'), backgroundColor: Colors.green),
+                );
+              }
+            },
+            child: const Text('บันทึกรูปภาพ', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +115,7 @@ class _UpdateAndDeleteScreenState extends State<UpdateAndDeleteScreen> {
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: const Text('จัดการข้อมูลร้านอาหาร', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white)),
-        backgroundColor: const Color(0xFFE64A19), // ส้มอิฐพรีเมียม
+        backgroundColor: const Color(0xFFE64A19), 
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -109,14 +156,37 @@ class _UpdateAndDeleteScreenState extends State<UpdateAndDeleteScreen> {
                   padding: const EdgeInsets.all(12.0),
                   child: Row(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: SizedBox(
-                          width: 65, height: 65,
-                          child: res.imageUrl.isNotEmpty
-                              ? Image.network(res.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.broken_image)))
-                              : Container(color: Colors.grey[200], child: const Icon(Icons.restaurant, color: Colors.grey)),
-                        ),
+                      // 📸 อัปเกรดส่วนรูปภาพ: ใส่ Stack เพื่อวางปุ่มกล้องถ่ายรูปทับลงไป
+                      Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: SizedBox(
+                              width: 70, height: 70, // ขยายรูปขึ้นนิดหน่อยให้ปุ่มกล้องไม่บังมิด
+                              child: res.imageUrl.isNotEmpty
+                                  ? Image.network(res.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.broken_image)))
+                                  : Container(color: Colors.grey[200], child: const Icon(Icons.restaurant, color: Colors.grey)),
+                            ),
+                          ),
+                          // 🚀 ปุ่มเปลี่ยนรูปภาพ (Quick Update) ลอยอยู่มุมขวาล่างของรูป
+                          Positioned(
+                            bottom: -2,
+                            right: -2,
+                            child: InkWell(
+                              onTap: () => _showUpdateImageDialog(context, res.id, res.imageUrl),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.deepOrange,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2), // ขอบขาวให้ดูป๊อปอัป
+                                ),
+                                child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -137,9 +207,7 @@ class _UpdateAndDeleteScreenState extends State<UpdateAndDeleteScreen> {
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) => EditRestaurantScreen(restaurant: res),
-                                ),
+                                MaterialPageRoute(builder: (context) => EditRestaurantScreen(restaurant: res)),
                               );
                             },
                             borderRadius: BorderRadius.circular(12),
