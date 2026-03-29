@@ -310,7 +310,7 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
                 height: 55,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green, // ใช้สีเขียวเพื่อบอกว่าคือการ "ยืนยัน/เสร็จสิ้น"
+                    backgroundColor: const Color.fromARGB(255, 245, 99, 26), // ใช้สีเขียวเพื่อบอกว่าคือการ "ยืนยัน/เสร็จสิ้น"
                     foregroundColor: Colors.white,
                     elevation: 4,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

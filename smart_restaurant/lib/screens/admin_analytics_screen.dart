@@ -50,7 +50,7 @@ class AdminAnalyticsScreen extends StatelessWidget {
                 children: [
                   const Text('รายงานประสิทธิภาพระบบ', style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
-                  const Text('ยินดีต้อนรับกลับ, Batman 🦇', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
+                  const Text('ยินดีต้อนรับกลับ ', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
                 ],
               ),
             ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:math' as math;
 import '../models/restaurant.dart';
 import '../services/database_service.dart';
 import 'all_reviews_screen.dart';
@@ -19,18 +18,11 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   final DatabaseService _dbService = DatabaseService();
   final User? currentUser = FirebaseAuth.instance.currentUser; 
 
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    const double p = 0.017453292519943295;
-    final double a = 0.5 -
-        math.cos((lat2 - lat1) * p) / 2 +
-        math.cos(lat1 * p) * math.cos(lat2 * p) * (1 - math.cos((lon2 - lon1) * p)) / 2;
-    return 12742 * math.asin(math.sqrt(a));
-  }
+  // 🚩 [ลบฟังก์ชัน _calculateDistance ทิ้ง] เพราะเราจะใช้ค่าที่คำนวณมาจากหน้าแรกแล้ว
 
-  // 🛠️ ฟังก์ชันเปิดกล่องสำหรับเขียนรีวิว
   void _showReviewDialog() {
     final TextEditingController commentController = TextEditingController();
-    double currentRating = 5.0; // คะแนนเริ่มต้น
+    double currentRating = 5.0;
 
     showDialog(
       context: context,
@@ -38,25 +30,22 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
         return StatefulBuilder( 
           builder: (context, setStateDialog) {
             return AlertDialog(
-              title: const Text('ให้คะแนนร้านนี้ 🌟'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: const Text('ให้คะแนนร้านนี้ 🌟', style: TextStyle(fontWeight: FontWeight.bold)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('คะแนน:'),
                       Slider(
                         value: currentRating,
-                        min: 1.0,
-                        max: 5.0,
-                        divisions: 4, // แบ่ง 5 ระดับ (1, 2, 3, 4, 5)
+                        min: 1.0, max: 5.0,
+                        divisions: 4,
                         activeColor: Colors.amber,
-                        label: currentRating.toString(),
-                        onChanged: (value) {
-                          setStateDialog(() => currentRating = value);
-                        },
+                        label: currentRating.toInt().toString(),
+                        onChanged: (value) => setStateDialog(() => currentRating = value),
                       ),
                       Text('${currentRating.toInt()} ดาว', style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
@@ -65,27 +54,20 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                   TextField(
                     controller: commentController,
                     maxLines: 3,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'ความประทับใจของคุณ',
                       hintText: 'พิมพ์รีวิวที่นี่...',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ],
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
-                ),
+                TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey))),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE64A19), foregroundColor: Colors.white),
                   onPressed: () async {
-                    if (commentController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('กรุณาพิมพ์ข้อความรีวิวก่อนครับ!')));
-                      return;
-                    }
-           
+                    if (commentController.text.trim().isEmpty) return;
                     if (currentUser != null) {
                       await _dbService.addReview(
                         widget.restaurant.id,
@@ -95,12 +77,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                         commentController.text.trim(),
                       );
                     }
-
                     if (mounted) Navigator.pop(dialogContext);
-                    
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ส่งรีวิวเรียบร้อย ขอบคุณครับ!'), backgroundColor: Colors.green));
-                    }
                   },
                   child: const Text('ส่งรีวิว'),
                 ),
@@ -114,34 +91,41 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const double myLat = 13.0823;
-    const double myLng = 100.9265;
-    double distance = _calculateDistance(myLat, myLng, widget.restaurant.lat, widget.restaurant.lng);
+    // 🚩 [ลบพิกัด myLat, myLng หลอกๆ ออก] 
+    // และดึงค่าระยะทางมาจาก Object restaurant ที่หน้าแรกส่งมาให้
+    double? displayDistance = widget.restaurant.distance;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.restaurant.name),
-        backgroundColor: Colors.deepOrange,
+        backgroundColor: const Color(0xFFE64A19),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ส่วนแสดงข้อมูลเบื้องต้น
             Container(
               width: double.infinity,
-              color: Colors.deepOrange[50],
-              padding: const EdgeInsets.all(16),
+              color: const Color(0xFFE64A19).withOpacity(0.05),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('หมวดหมู่: ${widget.restaurant.category}', style: const TextStyle(fontSize: 16, color: Colors.deepOrange, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
+                  Text('หมวดหมู่: ${widget.restaurant.category}', style: const TextStyle(fontSize: 16, color: Color(0xFFE64A19), fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Icon(Icons.location_on, color: Colors.red),
-                      const SizedBox(width: 4),
-                      Text('ห่างจากคุณ: ${distance.toStringAsFixed(2)} กม.', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Icon(Icons.location_on, color: Colors.redAccent, size: 20),
+                      const SizedBox(width: 6),
+                      // 🚩 แสดงระยะทางที่ส่งมาจากหน้าแรก (เชื่อถือได้ 100%)
+                      Text(
+                        displayDistance != null 
+                          ? 'ห่างจากคุณ: ${displayDistance.toStringAsFixed(2)} กม.' 
+                          : 'กำลังคำนวณระยะทาง...', 
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)
+                      ),
                     ],
                   ),
                 ],
@@ -149,52 +133,43 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
             ),
             
             const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('รายการเมนูอาหาร 🍽️', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            ),
-            widget.restaurant.menus.isEmpty
-                ? const Padding(padding: EdgeInsets.symmetric(horizontal: 16.0), child: Text('ยังไม่มีเมนูอาหาร'))
-                : ListView.builder(
-                    shrinkWrap: true, 
-                    physics: const NeverScrollableScrollPhysics(), // 🚩 ปิดการไถจอของตัวมันเอง
-                    itemCount: widget.restaurant.menus.length,
-                    itemBuilder: (context, index) {
-                      final menu = widget.restaurant.menus[index];
-                      return ListTile(
-                        leading: CircleAvatar(backgroundColor: Colors.grey[200], child: Text('${index + 1}')),
-                        title: Text(menu['name'] ?? ''),
-                        trailing: Text('${menu['price'] ?? 0} บาท', style: const TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.bold)),
-                      );
-                    },
-                  ),
-
-            const Divider(thickness: 2, height: 40),
-
-            // ส่วนแสดงรีวิวและเรตติ้ง (Real-time Stream) ---
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text('รีวิวจากผู้ใช้งาน 🌟', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              padding: EdgeInsets.fromLTRB(20, 24, 20, 10),
+              child: Text('รายการเมนูอาหาร 🍽️', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
             ),
             
-            // 📡 ท่อต่อตรงเข้า Database เพื่อดึงข้อมูล Sub-collection 'reviews'
+            widget.restaurant.menus.isEmpty
+              ? const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text('ยังไม่มีเมนูอาหาร'))
+              : ListView.builder(
+                  shrinkWrap: true, 
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: widget.restaurant.menus.length,
+                  itemBuilder: (context, index) {
+                    final menu = widget.restaurant.menus[index];
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                      leading: CircleAvatar(backgroundColor: Colors.grey[100], child: Text('${index + 1}', style: const TextStyle(color: Colors.black87))),
+                      title: Text(menu['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      trailing: Text('${menu['price'] ?? 0} บาท', style: const TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.w900)),
+                    );
+                  },
+                ),
+
+            const Divider(thickness: 1, height: 60, indent: 20, endIndent: 20),
+
+            // ส่วนแสดงรีวิว
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text('รีวิวจากผู้ใช้งาน 🌟', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+            ),
+            
             StreamBuilder<QuerySnapshot>(
               stream: _dbService.getReviews(widget.restaurant.id, limit: 3), 
               builder: (context, snapshot) {
-                // สถานะ: เกิดข้อผิดพลาด
-                if (snapshot.hasError) return const Center(child: Text('❌ เกิดข้อผิดพลาดในการโหลดรีวิว'));
-                
-                // สถานะ: กำลังโหลดข้อมูล
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                
-                // สถานะ: ไม่มีรีวิวเลย
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text('ยังไม่มีรีวิวสำหรับร้านนี้ เป็นคนแรกที่รีวิวเลยสิ!', style: TextStyle(color: Colors.grey)),
-                  );
+                  return const Padding(padding: EdgeInsets.all(20), child: Text('ยังไม่มีรีวิวสำหรับร้านนี้', style: TextStyle(color: Colors.grey)));
                 }
 
-                // สถานะ: มีข้อมูลรีวิว (สร้างเป็น Column เพื่อมัดรวม ListView กับปุ่ม "ดูรีวิวทั้งหมด" ไว้ด้วยกัน)
                 return Column(
                   children: [
                     ListView.builder(
@@ -202,62 +177,43 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: snapshot.data!.docs.length,
                       itemBuilder: (context, index) {
-                        var reviewDoc = snapshot.data!.docs[index];
-                        var data = reviewDoc.data() as Map<String, dynamic>;
-                        
-                        return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                          color: Colors.white,
-                          elevation: 2,
-                          child: ListTile(
-                            leading: const CircleAvatar(backgroundColor: Colors.amber, child: Icon(Icons.person, color: Colors.white)),
-                            title: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(child: Text(data['userEmail'] ?? 'Unknown', overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                Row(
-                                  children: [
-                                    Text('${data['rating']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                    const Icon(Icons.star, color: Colors.amber, size: 20),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(data['comment'] ?? '', style: const TextStyle(fontSize: 15, color: Colors.black87)),
-                            ),
+                        var data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                        return Container(
+                          margin: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)]),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(data['userEmail'] ?? 'User', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Row(children: [Text('${data['rating']}', style: const TextStyle(fontWeight: FontWeight.w900)), const Icon(Icons.star, color: Colors.amber, size: 16)]),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(data['comment'] ?? '', style: const TextStyle(color: Colors.black87)),
+                            ],
                           ),
                         );
                       },
                     ),
-
-                    // 🚪 ปุ่มทะลุไปหน้า "รีวิวทั้งหมด" 
                     TextButton.icon(
                       onPressed: () {
-                        // 🚀 นำทางไปหน้า AllReviewsScreen พร้อมส่ง ID และชื่อร้านตามไปด้วย
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AllReviewsScreen(
-                              restaurantId: widget.restaurant.id,
-                              restaurantName: widget.restaurant.name,
-                            ),
-                          ),
-                        );
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => AllReviewsScreen(restaurantId: widget.restaurant.id, restaurantName: widget.restaurant.name)));
                       },
-                      icon: const Icon(Icons.forum, color: Colors.deepOrange),
-                      label: const Text('ดูรีวิวทั้งหมด', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 16)),
+                      icon: const Icon(Icons.forum_outlined, color: Color(0xFFE64A19)),
+                      label: const Text('ดูรีวิวทั้งหมด', style: TextStyle(color: Color(0xFFE64A19), fontWeight: FontWeight.bold)),
                     ),
                   ],
                 );
               },
             ),
-            const SizedBox(height: 80), // เว้นที่ว่างด้านล่างกันปุ่มลอย (FAB) บังเนื้อหา
+            const SizedBox(height: 100),
           ],
         ),
       ),
-      // 🌟 ปุ่มลอยสำหรับกดเขียนรีวิว
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showReviewDialog,
         backgroundColor: Colors.amber,

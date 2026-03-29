@@ -73,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Icon(Icons.restaurant_menu, size: 80, color: Colors.deepOrange),
                 const SizedBox(height: 20),
                 const Text(
-                  'Smart Restaurant',
+                  'HungryHeros',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.deepOrange),
                 ),
@@ -127,7 +127,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _isLoading ? null : _login,
                     child: _isLoading 
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('เข้าสู่ระบบ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        : const Text('เข้าสู่ระบบ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(height: 16),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
-import 'dart:math' as math; 
 import '../services/database_service.dart';
 import '../models/restaurant.dart';
 import 'login_screen.dart';
@@ -17,15 +17,37 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final DatabaseService _dbService = DatabaseService();
-  String _searchQuery = ''; 
-  final String _staticAdminPassword = '123'; 
+  String _searchQuery = '';
+  final String _staticAdminPassword = '123';
+  Position? _currentPosition;
 
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    const double p = 0.017453292519943295;
-    final double a = 0.5 -
-        math.cos((lat2 - lat1) * p) / 2 +
-        math.cos(lat1 * p) * math.cos(lat2 * p) * (1 - math.cos((lon2 - lon1) * p)) / 2;
-    return 12742 * math.asin(math.sqrt(a));
+  @override
+  void initState() {
+    super.initState();
+    _initFastLocation(); 
+  }
+
+  Future<void> _initFastLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+
+    Position? lastPosition = await Geolocator.getLastKnownPosition();
+    if (lastPosition != null && mounted) {
+      setState(() => _currentPosition = lastPosition);
+    }
+
+    Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.medium,
+      timeLimit: const Duration(seconds: 5),
+    ).then((position) {
+      if (mounted) setState(() => _currentPosition = position);
+    }).catchError((e) => print("GPS Error: $e"));
   }
 
   Future<void> _logout() async {
@@ -38,6 +60,36 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // 🛡️ ฟังก์ชันแสดงป๊อปอัปยืนยันก่อนออกจากระบบ
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('ออกจากระบบ', style: TextStyle(fontWeight: FontWeight.w900)),
+        content: const Text('คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?', style: TextStyle(color: Colors.black87, fontSize: 16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent, 
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              Navigator.pop(context); // ปิดป๊อปอัปก่อน
+              _logout(); // แล้วค่อยเรียกคำสั่งล็อกเอาต์ของจริง
+            },
+            child: const Text('ยืนยัน', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAdminLoginDialog() {
     final TextEditingController passwordController = TextEditingController();
     showDialog(
@@ -45,8 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
       barrierDismissible: false, 
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), 
-          title: const Text('เข้าสู่โหมดผู้ดูแลระบบ', style: TextStyle(fontWeight: FontWeight.bold)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)), 
+          title: const Text('เข้าสู่โหมดผู้ดูแลระบบ', style: TextStyle(fontWeight: FontWeight.w900)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -57,7 +109,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 obscureText: true, 
                 decoration: InputDecoration(
                   labelText: 'รหัสผ่าน Admin',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.deepOrange, width: 2)),
                   prefixIcon: const Icon(Icons.security, color: Colors.deepOrange),
                 ),
               ),
@@ -73,21 +126,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 backgroundColor: Colors.deepOrange, 
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
               onPressed: () {
                 if (passwordController.text == _staticAdminPassword) {
                   Navigator.pop(context); 
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDashboardScreen()));
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('❌ รหัสผ่านไม่ถูกต้อง!'), backgroundColor: Colors.red),
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('❌ รหัสผ่านไม่ถูกต้อง!'), backgroundColor: Colors.red));
                 }
               },
-              child: const Text('ยืนยัน'),
+              child: const Text('ยืนยัน', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -98,49 +147,68 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF4F6F8), 
       appBar: AppBar(
-        title: const Text('Restaurants', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white)),
+        title: const Text('HungryHeros', style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.2)),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFFF5722), Color.fromARGB(255, 253, 123, 84)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search, size: 28),
-            onPressed: () {}, 
-          ),
-          IconButton(
-            icon: const Icon(Icons.admin_panel_settings, size: 28),
-            tooltip: 'สำหรับผู้ดูแลระบบ',
-            onPressed: _showAdminLoginDialog, 
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, size: 26, color: Colors.white70),
-            tooltip: 'ออกจากระบบ',
-            onPressed: _logout,
-          ),
+          IconButton(icon: const Icon(Icons.admin_panel_settings, size: 26, color: Colors.white), tooltip: 'สำหรับผู้ดูแลระบบ', onPressed: _showAdminLoginDialog),
+          IconButton(icon: const Icon(Icons.logout, size: 24, color: Colors.white), tooltip: 'ออกจากระบบ', onPressed: _confirmLogout),
           const SizedBox(width: 8),
         ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), spreadRadius: 0, blurRadius: 20, offset: const Offset(0, 4)),
-                ],
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFFF5722), Color.fromARGB(255, 253, 116, 74)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-              child: TextField(
-                onChanged: (value) => setState(() => _searchQuery = value),
-                decoration: const InputDecoration(
-                  hintText: 'ค้นหาร้านอาหาร หรือหมวดหมู่...',
-                  hintStyle: TextStyle(color: Colors.black38, fontSize: 15),
-                  prefixIcon: Icon(Icons.search, color: Colors.deepOrange, size: 28),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 16),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(40),
+                bottomRight: Radius.circular(40),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('ยินดีต้อนรับ', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 6),
+                const Text('วันนี้อยากทานอะไรดีครับ?', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 20),
+                
+                // 🔍 ช่องค้นหา
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white, 
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), spreadRadius: 0, blurRadius: 20, offset: const Offset(0, 10))],
+                  ),
+                  child: TextField(
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                    decoration: const InputDecoration(
+                      hintText: 'ค้นหาร้านอาหาร หรือหมวดหมู่...',
+                      hintStyle: TextStyle(color: Colors.black38, fontSize: 16, fontWeight: FontWeight.w500),
+                      prefixIcon: Icon(Icons.search, color: Color(0xFFFF5722), size: 26),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
 
@@ -148,65 +216,92 @@ class _HomeScreenState extends State<HomeScreen> {
             child: StreamBuilder<List<Restaurant>>(
               stream: _dbService.getRestaurants(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return _buildEmptyState();
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
+                if (!snapshot.hasData || snapshot.data!.isEmpty) return _buildEmptyState();
+
+                List<Restaurant> allRestaurants = List.from(snapshot.data!);
+
+                if (_currentPosition != null) {
+                  for (var r in allRestaurants) {
+                    r.distance = Geolocator.distanceBetween(_currentPosition!.latitude, _currentPosition!.longitude, r.lat, r.lng) / 1000;
+                  }
+                  allRestaurants.sort((a, b) => (a.distance ?? 999).compareTo(b.distance ?? 999));
                 }
 
-                List<Restaurant> allRestaurants = snapshot.data!;
-                List<Restaurant> displayRestaurants = allRestaurants;
-                
+                List<Restaurant> searchResults = [];
                 if (_searchQuery.isNotEmpty) {
-                  displayRestaurants = allRestaurants.where((r) {
-                    return r.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-                           r.category.toLowerCase().contains(_searchQuery.toLowerCase());
-                  }).toList();
+                  searchResults = allRestaurants.where((r) => 
+                    r.name.toLowerCase().contains(_searchQuery.toLowerCase()) || r.category.toLowerCase().contains(_searchQuery.toLowerCase())
+                  ).toList();
                 }
 
                 List<Restaurant> topRestaurants = List.from(allRestaurants)..sort((a, b) => b.rating.compareTo(a.rating));
                 topRestaurants = topRestaurants.take(4).toList();
-                bool isSearching = _searchQuery.isNotEmpty;
+
+                List<Restaurant> nearbyRestaurants = allRestaurants.where((r) => r.distance != null && r.distance! <= 10.0).toList();
+                List<Restaurant> otherRestaurants = allRestaurants.where((r) => r.distance == null || r.distance! > 10.0).toList();
 
                 return SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (!isSearching) ...[
+                      if (_searchQuery.isNotEmpty) ...[
                         const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20),
-                          child: Text('🔥 ร้านเด็ดห้ามพลาด', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                          padding: EdgeInsets.fromLTRB(20, 24, 20, 16),
+                          child: Text('🔍 ผลการค้นหา', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87)),
                         ),
-                        const SizedBox(height: 16),
+                        if (searchResults.isEmpty)
+                          _buildEmptyState()
+                        else
+                          ListView.builder(
+                            shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: searchResults.length, itemBuilder: (context, index) => _buildNormalRestaurantCard(searchResults[index]),
+                          ),
+                      ] 
+                      else ...[
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
+                          child: Text('🔥 ร้านเด็ดห้ามพลาด', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87)),
+                        ),
                         SizedBox(
-                          height: 240, 
+                          height: 250, 
                           child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            itemCount: topRestaurants.length,
-                            itemBuilder: (context, index) => _buildTopRestaurantCard(topRestaurants[index]),
+                            scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 14),
+                            itemCount: topRestaurants.length, itemBuilder: (context, index) => _buildTopRestaurantCard(topRestaurants[index]),
                           ),
                         ),
-                        const SizedBox(height: 30),
-                      ],
+                        const SizedBox(height: 16),
 
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20),
-                        child: Text('🍴 ร้านอาหารทั้งหมด', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      if (displayRestaurants.isEmpty)
-                        _buildEmptyState()
-                      else
-                        ListView.builder(
-                          shrinkWrap: true, 
-                          physics: const NeverScrollableScrollPhysics(), 
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: displayRestaurants.length,
-                          itemBuilder: (context, index) => _buildNormalRestaurantCard(displayRestaurants[index]),
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
+                          child: Text('📍 ร้านใกล้ฉัน ', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87)),
                         ),
+                        if (nearbyRestaurants.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            child: Container(
+                              width: double.infinity, padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(16)),
+                              child: const Text('ยังไม่มีร้านอาหารในรัศมี 10 กม. 😢', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center),
+                            ),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: nearbyRestaurants.length, itemBuilder: (context, index) => _buildNormalRestaurantCard(nearbyRestaurants[index]),
+                          ),
+
+                        if (otherRestaurants.isNotEmpty) ...[
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
+                            child: Text('🍴 ร้านอาหารอื่นๆ', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87)),
+                          ),
+                          ListView.builder(
+                            shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: otherRestaurants.length, itemBuilder: (context, index) => _buildNormalRestaurantCard(otherRestaurants[index]),
+                          ),
+                        ],
+                      ],
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -224,31 +319,28 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.fastfood_outlined, size: 80, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text('ยังไม่มีเมนูอร่อยในตอนนี้ 😢', style: TextStyle(fontSize: 18, color: Colors.grey[500], fontWeight: FontWeight.bold)),
+          const SizedBox(height: 40),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20)]),
+            child: Icon(Icons.ramen_dining_outlined, size: 80, color: Colors.deepOrange[200]),
+          ),
+          const SizedBox(height: 24),
+          const Text('ยังไม่มีเมนูอร่อยในตอนนี้ 😢', style: TextStyle(fontSize: 18, color: Colors.black54, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
+  // 🌟 การ์ดร้านแนะนำ (แนวนอน) - สีคุมโทนพรีเมียม ขาว/ส้ม/ดำ
   Widget _buildTopRestaurantCard(Restaurant restaurant) {
-    const double myLat = 13.0823;
-    const double myLng = 100.9265;
-    double distance = _calculateDistance(myLat, myLng, restaurant.lat, restaurant.lng);
-
+    double distance = restaurant.distance ?? 0.0;
     return Container(
-      width: 170,
+      width: 200, 
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 15, offset: const Offset(0, 8))],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 15, offset: const Offset(0, 8))]),
       child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        clipBehavior: Clip.antiAlias,
+        color: Colors.transparent, borderRadius: BorderRadius.circular(24), clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => RestaurantDetailScreen(restaurant: restaurant))),
           child: Column(
@@ -261,42 +353,38 @@ class _HomeScreenState extends State<HomeScreen> {
                     restaurant.imageUrl.isNotEmpty
                         ? Image.network(restaurant.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.broken_image, color: Colors.grey)))
                         : Container(color: Colors.grey[200], child: const Icon(Icons.restaurant, color: Colors.grey)),
+                    Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withOpacity(0.4), Colors.transparent, Colors.black.withOpacity(0.6)]))),
+                    
+                    // 🎨 ป้ายคะแนน: พื้นขาวโปร่งใส ตัวอักษรดำ เพื่อความคลีน
                     Positioned(
-                      top: 10, right: 10,
+                      top: 12, right: 12,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.95), borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)]),
+                        child: Row(children: [const Icon(Icons.star_rounded, color: Colors.amber, size: 16), const SizedBox(width: 4), Text(restaurant.rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Colors.black87))]),
+                      ),
+                    ),
+                    
+                    // 🎨 ป้ายระยะทาง: พื้นขาวโปร่งใส ไอคอนส้ม ตัวอักษรดำ (ลบสีแดงออก)
+                    Positioned(
+                      bottom: 12, left: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(color: Colors.white.withOpacity(0.95), borderRadius: BorderRadius.circular(12)),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 14),
-                            const SizedBox(width: 4),
-                            Text(restaurant.rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          ],
-                        ),
+                        child: Row(children: [const Icon(Icons.location_on_rounded, color: Colors.deepOrange, size: 14), const SizedBox(width: 4), Text('${distance.toStringAsFixed(1)} กม.', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.black87))]),
                       ),
                     ),
                   ],
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min, 
+                  crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, 
                   children: [
-                    Text(restaurant.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                    Text(restaurant.category, style: TextStyle(color: Colors.deepOrange[400], fontSize: 13, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(restaurant.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.grey, size: 14),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text('${distance.toStringAsFixed(1)} กม.', style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
-                        ),
-                      ],
-                    ),
+                    Text(restaurant.category, style: TextStyle(color: Colors.deepOrange[600], fontSize: 14, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -306,37 +394,29 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // 🎨 อัปเกรดการจัดเรียง ภายในกรอบให้สวยงามและเป็นระเบียบ (เพิ่มไอคอนดาว)
+  
+  // 🎨 การ์ดร้านอาหารปกติ (แนวตั้ง) - คุมโทนเทาและส้ม สบายตา
   Widget _buildNormalRestaurantCard(Restaurant restaurant) {
-    const double myLat = 13.0823;
-    const double myLng = 100.9265;
-    double distance = _calculateDistance(myLat, myLng, restaurant.lat, restaurant.lng);
-
+    double distance = restaurant.distance ?? 0.0;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 6))]),
       child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        clipBehavior: Clip.antiAlias,
+        color: Colors.transparent, borderRadius: BorderRadius.circular(24), clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => RestaurantDetailScreen(restaurant: restaurant))),
           child: Padding(
-            padding: const EdgeInsets.all(14.0), // ขยายพื้นที่ขอบให้ดูโล่งขึ้น
+            padding: const EdgeInsets.all(14.0),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
                   child: SizedBox(
-                    width: 85, height: 85, // ขยายรูปขึ้นนิดหน่อยให้สมดุลกับข้อมูลที่เพิ่มขึ้น
+                    width: 100, height: 100, 
                     child: restaurant.imageUrl.isNotEmpty
                         ? Image.network(restaurant.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.broken_image)))
-                        : Container(color: Colors.grey[200], child: const Icon(Icons.restaurant)),
+                        : Container(color: Colors.deepOrange[50], child: Icon(Icons.restaurant, color: Colors.deepOrange[200], size: 40)),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -344,52 +424,56 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // แถวที่ 1: ชื่อร้าน
-                      Text(restaurant.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 6),
-                      // แถวที่ 2: หมวดหมู่ • ระยะทาง
-                      Row(
+                      Text(restaurant.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8, runSpacing: 8,
                         children: [
-                          Text(restaurant.category, style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w600)),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 6),
-                            child: Icon(Icons.circle, size: 4, color: Colors.black26), // จุดไข่ปลาคั่นกลาง
+                          // 🎨 ป้ายหมวดหมู่: พื้นส้มอ่อน ตัวอักษรส้มเข้ม
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(color: Colors.deepOrange.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                            child: Text(restaurant.category, style: const TextStyle(color: Colors.deepOrange, fontSize: 12, fontWeight: FontWeight.w900)),
                           ),
-                          const Icon(Icons.location_on, color: Colors.grey, size: 12),
-                          const SizedBox(width: 2),
-                          Text('${distance.toStringAsFixed(1)} กม.', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          // 🎨 ป้ายระยะทาง: พื้นเทาอ่อน ไอคอนส้ม ตัวอักษรดำ (แทนที่สีชมพู/แดง)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.location_on_rounded, color: Colors.deepOrange, size: 14),
+                                const SizedBox(width: 4),
+                                Text('${distance.toStringAsFixed(1)} กม.', style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.w900)),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 8), 
-                      // แถวที่ 3: คะแนน ⭐️ + จำนวนรีวิว 💬
+                      const SizedBox(height: 12), 
                       StreamBuilder<QuerySnapshot>(
                         stream: _dbService.getReviews(restaurant.id), 
                         builder: (context, snapshot) {
                           int reviewCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
-                          return Row(
-                            children: [
-                              const Icon(Icons.star, color: Colors.amber, size: 16), // ใส่ดาวตรงนี้!
-                              const SizedBox(width: 4),
-                              Text(restaurant.rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
-                              const SizedBox(width: 12),
-                              const Icon(Icons.chat_bubble_rounded, color: Colors.black26, size: 14),
-                              const SizedBox(width: 4),
-                              Text('$reviewCount รีวิว', style: const TextStyle(color: Colors.black54, fontSize: 13, fontWeight: FontWeight.bold)),
-                            ],
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(10)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star_rounded, color: Colors.amber, size: 18), const SizedBox(width: 4),
+                                Text(restaurant.rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.black87)),
+                                const SizedBox(width: 12), Container(width: 1, height: 12, color: Colors.grey.shade300), const SizedBox(width: 12),
+                                // 🎨 ไอคอนและข้อความรีวิว: เปลี่ยนเป็นสีเทากลางๆ เพื่อลดความขัดแย้งของสี (แทนที่สีฟ้า)
+                                Icon(Icons.forum_rounded, color: Colors.grey.shade400, size: 16), const SizedBox(width: 4),
+                                Text('$reviewCount ความเห็น', style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w900)),
+                              ],
+                            ),
                           );
                         }
                       ),
                     ],
                   ),
-                ),
-                // แผงด้านขวาสุด: เปลี่ยนเป็นวงกลมลูกศรลอยตัวดูพรีเมียม
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.deepOrange.withOpacity(0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.deepOrange),
                 ),
               ],
             ),
